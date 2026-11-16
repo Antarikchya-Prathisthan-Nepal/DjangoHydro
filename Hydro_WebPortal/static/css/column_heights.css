@@ -1,0 +1,49 @@
+/* Column Height Adjustment CSS */
+
+/* Ensure the main columns are the same height */
+.main-container {
+    min-height: calc(100vh - 220px); /* Account for header and padding */
+}
+
+.charts-column,
+.prediction-column {
+    min-height: auto;
+}
+
+.glass-panel {
+    min-height: calc(100vh - 260px);
+}
+
+.observations-section {
+    min-height: calc(100vh - 300px);
+    display: flex;
+    flex-direction: column;
+}
+
+.water-level-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.water-level-table {
+    min-height: calc(100vh - 450px);
+}
+
+/* For table scrolling */
+.water-level-table > table {
+    height: 100%;
+}
+
+.water-level-table > table tbody {
+    display: block;
+    overflow-y: auto;
+    height: calc(100vh - 500px);
+}
+
+.water-level-table > table thead,
+.water-level-table > table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}

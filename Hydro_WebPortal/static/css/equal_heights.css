@@ -1,0 +1,254 @@
+/* Equal column heights without changing layout */
+
+/* Independent prediction column - no height matching */
+.prediction-column .glass-panel {
+    height: auto !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Independent observations section - no flex growth */
+.prediction-column .observations-section {
+    flex: none !important;
+    height: auto !important;
+    display: block !important;
+    flex-direction: unset !important;
+}
+
+/* Make the water level section independent of chart height */
+.water-level-section {
+    height: auto !important;
+    flex: none !important;
+    display: block !important;
+    min-height: auto !important;
+    margin-bottom: 10px !important;
+}
+
+/* OVERRIDE table_adjustments.css flex properties */
+.water-level-section {
+    flex: none !important;
+}
+
+/* Independent table container - compact for exactly 10 rows */
+.water-level-table {
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    flex: none !important;
+    overflow: visible !important;
+    display: block !important;
+}
+
+/* OVERRIDE table_adjustments.css - Remove forced min-height */
+.water-level-table {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.water-level-table tbody {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+/* Proper table display structure for alignment */
+.water-level-table table {
+    width: 100%;
+    display: table !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+}
+
+.water-level-table thead {
+    display: table-header-group !important;
+}
+
+.water-level-table tbody {
+    display: table-row-group !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.water-level-table tr {
+    display: table-row !important;
+}
+
+.water-level-table th,
+.water-level-table td {
+    display: table-cell !important;
+}
+
+/* Chart container: auto height so navigator fits inside */
+.chart-container {
+    height: auto !important;
+    margin-bottom: 1.5rem !important;
+}
+
+/* Main chart canvas wrapper — Chart.js sizes to this div, not the full container */
+.chart-canvas-wrapper {
+    position: relative;
+    height: 320px;
+}
+
+.chart-canvas-wrapper canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Ensure charts have proper spacing */
+.chart-section {
+    padding-bottom: 2rem;
+}
+
+/* === COMPACT TABLE STYLING FOR EXACTLY 10 ROWS === */
+/* Compact table headers with proper alignment */
+.water-level-table th {
+    height: 32px !important;
+    padding: 6px 8px !important;
+    line-height: 1.2 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    border-bottom: 2px solid #ddd !important;
+    background: #f8f9fa !important;
+}
+
+/* Compact table data cells */
+.water-level-table td {
+    height: 26px !important;
+    padding: 3px 8px !important;
+    line-height: 1.2 !important;
+    font-size: 13px !important;
+    vertical-align: middle !important;
+    text-align: center !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+}
+
+/* Column width distribution for 3-column discharge table */
+.water-level-table th:nth-child(1),
+.water-level-table td:nth-child(1) {
+    width: 35% !important;
+    text-align: left !important;
+}
+
+.water-level-table th:nth-child(2),
+.water-level-table td:nth-child(2) {
+    width: 32% !important;
+}
+
+.water-level-table th:nth-child(3),
+.water-level-table td:nth-child(3) {
+    width: 33% !important;
+}
+
+/* 4-column table for monthly forecast */
+.monthly-forecast-section .water-level-table th:nth-child(1),
+.monthly-forecast-section .water-level-table td:nth-child(1) {
+    width: 30% !important;
+    text-align: left !important;
+}
+
+.monthly-forecast-section .water-level-table th:nth-child(2),
+.monthly-forecast-section .water-level-table td:nth-child(2) {
+    width: 25% !important;
+}
+
+.monthly-forecast-section .water-level-table th:nth-child(3),
+.monthly-forecast-section .water-level-table td:nth-child(3) {
+    width: 25% !important;
+}
+
+.monthly-forecast-section .water-level-table th:nth-child(4),
+.monthly-forecast-section .water-level-table td:nth-child(4) {
+    width: 20% !important;
+}
+
+/* Loading and status cells */
+.water-level-table .loading {
+    text-align: center !important;
+    font-style: italic !important;
+    color: #666 !important;
+    padding: 8px !important;
+}
+
+/* Pagination controls */
+.table-pagination {
+    margin-top: 8px !important;
+    text-align: center !important;
+    padding: 8px !important;
+    border-top: 1px solid #ddd !important;
+}
+
+.pagination-btn {
+    background: #007bff !important;
+    color: white !important;
+    border: none !important;
+    padding: 6px 12px !important;
+    margin: 0 4px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+}
+
+.pagination-btn:hover {
+    background: #0056b3 !important;
+}
+
+.pagination-btn:disabled {
+    background: #ccc !important;
+    cursor: not-allowed !important;
+}
+
+/* === FINAL OVERRIDE SECTION - COMPACT TABLE LAYOUT === */
+/* This section overrides any conflicting CSS from other files */
+
+/* Force compact table container - no vacant space */
+.prediction-column .water-level-table,
+.water-level-table {
+    min-height: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+}
+
+/* Force compact section containers */
+.prediction-column .water-level-section,
+.water-level-section {
+    min-height: auto !important;
+    height: auto !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    margin-bottom: 10px !important;
+}
+
+/* Force compact observations section */
+.prediction-column .observations-section {
+    min-height: auto !important;
+    height: auto !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    flex-shrink: 0 !important;
+    flex-basis: auto !important;
+    display: block !important;
+}
+
+/* Force compact glass panel */
+.prediction-column .glass-panel {
+    min-height: auto !important;
+    height: auto !important;
+    flex: none !important;
+}
+
+/* Ensure table tbody doesn't force height */
+.water-level-table tbody {
+    min-height: auto !important;
+    height: auto !important;
+    flex: none !important;
+}

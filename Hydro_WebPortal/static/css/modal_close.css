@@ -1,0 +1,27 @@
+/* CSS for modal close buttons across the application */
+
+/* General modal close button styling */
+.modal-close, 
+.btn-close {
+    color: white !important;
+    opacity: 1;
+}
+
+/* Bootstrap's close button uses a background image, so we need to invert it to make it white */
+.btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%) !important;
+}
+
+/* Hover state for better user experience */
+.modal-close:hover,
+.btn-close:hover {
+    opacity: 0.8;
+    color: white !important;
+}
+
+/* Focus state for accessibility */
+.modal-close:focus,
+.btn-close:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}

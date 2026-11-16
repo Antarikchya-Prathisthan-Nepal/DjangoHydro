@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report.display_name }} — Watershed Report</title>
+    <style>
+        /* ── Base ───────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            color: #1a1a1a;
+            background: #fff;
+            line-height: 1.5;
+        }
+
+        /* ── Page shell ─────────────────────────────────────────── */
+        .page { max-width: 800px; margin: 0 auto; padding: 32px 40px; }
+
+        /* ── Print button (hidden when printing) ────────────────── */
+        .print-bar {
+            position: sticky;
+            top: 0;
+            background: #0f3460;
+            color: #fff;
+            padding: 10px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+        .print-bar .hint { color: #b0bec5; }
+        .btn-print {
+            background: #4fc3f7;
+            color: #0f3460;
+            border: none;
+            padding: 7px 20px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+        }
+        .btn-print:hover { background: #81d4fa; }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .report-header {
+            border-bottom: 3px solid #0f3460;
+            padding-bottom: 18px;
+            margin-bottom: 28px;
+        }
+        .report-header .org {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #546e7a;
+            margin-bottom: 6px;
+        }
+        .report-header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #0f3460;
+            margin-bottom: 8px;
+        }
+        .meta-row {
+            display: flex;
+            gap: 24px;
+            font-size: 0.82rem;
+            color: #546e7a;
+            flex-wrap: wrap;
+        }
+        .meta-row span strong { color: #1a1a1a; }
+
+        /* ── Section ────────────────────────────────────────────── */
+        .section { margin-bottom: 28px; }
+        .section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #0f3460;
+            border-bottom: 1px solid #cfd8dc;
+            padding-bottom: 5px;
+            margin-bottom: 14px;
+        }
+
+        /* ── Summary cards ──────────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .s-card {
+            background: #f5f7fa;
+            border: 1px solid #e0e6ed;
+            border-radius: 6px;
+            padding: 12px 14px;
+        }
+        .s-card .val { font-size: 1.4rem; font-weight: 700; color: #0f3460; }
+        .s-card .lbl { font-size: 0.72rem; color: #546e7a; margin-top: 2px; }
+
+        /* ── Tables ─────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        thead th {
+            background: #0f3460;
+            color: #fff;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        tbody tr:nth-child(even) { background: #f5f7fa; }
+        tbody td { padding: 7px 10px; border-bottom: 1px solid #e0e6ed; }
+        tbody tr:last-child td { border-bottom: none; }
+
+        /* LULC colour swatch in table */
+        .swatch {
+            display: inline-block;
+            width: 10px; height: 10px;
+            border-radius: 2px;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        /* Bar in LULC table */
+        .bar-wrap { background: #e0e6ed; border-radius: 2px; height: 6px; width: 100%; }
+        .bar-fill  { height: 6px; border-radius: 2px; }
+
+        /* ── Wards ──────────────────────────────────────────────── */
+        .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .tag {
+            background: #e8f4fd;
+            border: 1px solid #b3d9f5;
+            color: #0f3460;
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+        }
+
+        /* ── Map image ──────────────────────────────────────────── */
+        .map-image-wrap {
+            text-align: center;
+            margin-bottom: 6px;
+        }
+        .map-image-wrap img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #cfd8dc;
+            border-radius: 5px;
+        }
+
+        /* ── Footer ─────────────────────────────────────────────── */
+        .report-footer {
+            margin-top: 36px;
+            padding-top: 14px;
+            border-top: 1px solid #cfd8dc;
+            font-size: 0.75rem;
+            color: #90a4ae;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ── Print media ────────────────────────────────────────── */
+        @media print {
+            .print-bar { display: none !important; }
+            body { font-size: 10pt; }
+            .page { padding: 0; max-width: 100%; }
+            .summary-grid { grid-template-columns: repeat(4, 1fr); }
+            a { color: inherit; text-decoration: none; }
+            @page { margin: 18mm 15mm; }
+
+            /* Keep every section together — no split between title and content */
+            .section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            /* Cap the map so it never overflows a single page */
+            .map-image-wrap img {
+                max-height: 260px;
+                width: auto;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Print bar (screen only) -->
+<div class="print-bar">
+    <span class="hint">Open in browser &rarr; File &rarr; Print &rarr; Save as PDF</span>
+    <button class="btn-print" onclick="window.print()">&#128438; Print / Save as PDF</button>
+</div>
+
+<div class="page">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <div class="report-header">
+        <div class="org">Antarikchya Hydropower Portal &mdash; Watershed Report</div>
+        <h1>{{ report.display_name }}</h1>
+        <div class="meta-row">
+            <span><strong>Generated:</strong> {{ report.created_at|date:"Y-m-d H:i" }}</span>
+            <span><strong>User:</strong> {{ report.user.get_full_name|default:report.user.email }}</span>
+            <span><strong>Area:</strong> {{ area_km2 }} km²</span>
+        </div>
+    </div>
+
+    <!-- ── Summary ─────────────────────────────────────────────────── -->
+    <div class="section">
+        <div class="section-title">Summary</div>
+        <div class="summary-grid">
+            <div class="s-card">
+                <div class="val">{{ area_km2 }}</div>
+                <div class="lbl">Area (km²)</div>
+            </div>
+            <div class="s-card">
+                <div class="val">
+                    {% if population.error %}N/A
+                    {% else %}{{ population.total|default:0 }}
+                    {% endif %}
+                </div>
+                <div class="lbl">Est. Population</div>
+            </div>
+            <div class="s-card">
+                <div class="val">
+                    {% if buildings.error %}N/A
+                    {% else %}{{ buildings.total|default:0 }}
+                    {% endif %}
+                </div>
+                <div class="lbl">Buildings</div>
+            </div>
+            <div class="s-card">
+                <div class="val">
+                    {% if wards_data.error %}N/A
+                    {% else %}{{ wards_data.ward_count|default:0 }}
+                    {% endif %}
+                </div>
+                <div class="lbl">Wards</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Location Map ────────────────────────────────────────────── -->
+    {% if map_image %}
+    <div class="section">
+        <div class="section-title">Location Map</div>
+        <div class="map-image-wrap">
+            <img src="{{ map_image }}" alt="Watershed location map">
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Land Use / Land Cover ───────────────────────────────────── -->
+    <div class="section">
+        <div class="section-title">Land Use / Land Cover</div>
+        {% if lulc %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th style="text-align:right;">Area (km²)</th>
+                    <th style="text-align:right;">Coverage</th>
+                    <th style="width:140px;">Distribution</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in lulc %}
+                <tr>
+                    <td>
+                        <span class="swatch" style="background:{{ row.color }}"></span>
+                        {{ row.class_name }}
+                    </td>
+                    <td style="text-align:right;">{{ row.area_km2 }}</td>
+                    <td style="text-align:right;">{{ row.percentage }}%</td>
+                    <td>
+                        <div class="bar-wrap">
+                            <div class="bar-fill" style="width:{{ row.percentage }}%;background:{{ row.color }}"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#90a4ae;font-size:0.85rem;">No LULC data available for this area.</p>
+        {% endif %}
+    </div>
+
+    <!-- ── Buildings ───────────────────────────────────────────────── -->
+    <div class="section">
+        <div class="section-title">Buildings by Type &mdash; Total: {{ buildings.total|default:0 }}</div>
+        {% if by_type %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th style="text-align:right;">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in by_type %}
+                <tr>
+                    <td>{{ item.type|capfirst }}</td>
+                    <td style="text-align:right;">{{ item.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#90a4ae;font-size:0.85rem;">No building data available for this area.</p>
+        {% endif %}
+    </div>
+
+    <!-- ── Administrative Units ────────────────────────────────────── -->
+    <div class="section">
+        <div class="section-title">
+            Administrative Units &mdash;
+            {{ wards_data.district_count|default:0 }} district(s),
+            {{ municipalities|length }} municipality/municipalities,
+            {{ wards_data.ward_count|default:0 }} ward(s)
+        </div>
+
+        {% if districts %}
+        <p style="font-size:0.82rem;color:#546e7a;margin-bottom:6px;"><strong>Districts:</strong></p>
+        <div class="tag-list">
+            {% for d in districts %}<span class="tag">{{ d }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if municipalities %}
+        <p style="font-size:0.82rem;color:#546e7a;margin-bottom:6px;margin-top:10px;"><strong>Municipalities / Gapa-Napa:</strong></p>
+        <div class="tag-list">
+            {% for m in municipalities %}<span class="tag">{{ m }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if wards %}
+        <table style="margin-top:14px;">
+            <thead>
+                <tr>
+                    <th>District</th>
+                    <th>Municipality</th>
+                    <th>Type</th>
+                    <th style="text-align:right;">Ward No.</th>
+                    <th style="text-align:right;">Area (km²)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in wards %}
+                <tr>
+                    <td>{{ w.district }}</td>
+                    <td>{{ w.municipality }}</td>
+                    <td>{{ w.type }}</td>
+                    <td style="text-align:right;">{{ w.ward_number }}</td>
+                    <td style="text-align:right;">{{ w.area_sqkm }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- ── Footer ──────────────────────────────────────────────────── -->
+    <div class="report-footer">
+        <span>Antarikchya Hydropower Portal &mdash; hydro.antarikchya.org.np</span>
+        <span>Report ID: {{ report.pk }} &mdash; Generated {{ report.created_at|date:"Y-m-d" }}</span>
+    </div>
+
+</div><!-- /.page -->
+
+<script>
+    // Auto-open print dialog when loaded via download button
+    if (window.location.hash === '#print') {
+        window.addEventListener('load', () => window.print());
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+from all_wind_stations import WIND_STATIONS

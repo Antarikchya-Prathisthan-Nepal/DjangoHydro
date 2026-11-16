@@ -1,0 +1,538 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Restricted - Discharge Prediction</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ── Blurred home-page replica ── */
+        .bg-page {
+            position: fixed;
+            inset: -20px;          /* overshoot so blur edges are hidden */
+            filter: blur(7px);
+            transform: scale(1.04);
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+        }
+
+        /* fake navbar */
+        .bg-navbar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bg-navbar-brand { color: #fff; font-size: 1.4rem; font-weight: 600; }
+        .bg-navbar-links { display: flex; gap: 28px; }
+        .bg-navbar-links span { color: #fff; font-size: 0.95rem; opacity: 0.85; }
+        .bg-navbar-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff; border: none; padding: 8px 20px;
+            border-radius: 20px; font-size: 0.9rem; font-weight: 600;
+        }
+
+        /* fake hero */
+        .bg-hero {
+            background: url('{% static "images/hero-dam.jpg" %}') no-repeat center center / cover;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 60px 80px;
+            position: relative;
+        }
+        .bg-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.25);
+        }
+        .bg-hero-text {
+            position: relative;
+            z-index: 1;
+            color: #fff;
+            max-width: 400px;
+        }
+        .bg-hero-text h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .bg-hero-text p  { font-size: 1.1rem; opacity: 0.9; }
+
+        /* fake wave */
+        .bg-wave svg { display: block; width: 100%; height: 50px; fill: #f8f9fa; }
+
+        /* fake features */
+        .bg-features {
+            background: #f8f9fa;
+            padding: 40px 60px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+        .bg-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 28px 24px;
+            width: 260px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+        }
+        .bg-card-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 14px;
+        }
+        .bg-card-icon i { font-size: 1.6rem; color: #fff; }
+        .bg-card h3 { font-size: 1.1rem; color: #2c3e50; font-weight: 700; margin-bottom: 8px; }
+        .bg-card p  { font-size: 0.82rem; color: #7f8c8d; line-height: 1.5; margin-bottom: 16px; }
+        .bg-card-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff; border: none;
+            padding: 8px 20px; border-radius: 20px;
+            font-size: 0.85rem; font-weight: 600;
+        }
+
+        /* ── Dark + blur overlay ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 15, 30, 0.55);
+            backdrop-filter: blur(2px);
+            z-index: 1;
+        }
+
+        /* ── Glassmorphism restriction card ── */
+        .modal-wrapper {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            padding: 20px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.10);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 24px;
+            padding: 52px 44px;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.40),
+                inset 0 1px 0 rgba(255,255,255,0.15);
+            animation: cardIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: scale(0.88) translateY(20px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+
+        .lock-ring {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            background: rgba(231, 76, 60, 0.18);
+            border: 2px solid rgba(231, 76, 60, 0.50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 28px;
+            box-shadow: 0 0 24px rgba(231, 76, 60, 0.20);
+        }
+        .lock-ring i { font-size: 2.2rem; color: #e74c3c; }
+
+        .glass-card h2 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 14px;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+
+        .glass-card p {
+            color: rgba(255,255,255,0.78);
+            font-size: 1rem;
+            line-height: 1.65;
+            margin-bottom: 36px;
+        }
+
+        .btn-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff;
+            text-decoration: none;
+            padding: 13px 36px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 16px rgba(52,152,219,0.40);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-home:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52,152,219,0.55);
+            color: #fff;
+        }
+        .btn-home:active { transform: translateY(0); }
+
+        .card-footer-note {
+            margin-top: 20px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.40);
+        }
+
+        /* ── Request Access button ── */
+        .btn-request {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+            border: 1px solid rgba(255,255,255,0.30);
+            padding: 11px 30px;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .btn-request:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            border-color: rgba(255,255,255,0.55);
+        }
+
+        /* ── Form panel ── */
+        .card-panel { width: 100%; }
+        .card-panel-form { display: none; text-align: left; }
+        .card-panel-form.active { display: block; }
+        .card-panel-info.hidden { display: none; }
+
+        .form-back-btn {
+            background: none; border: none; cursor: pointer;
+            color: rgba(255,255,255,0.6); font-size: 0.85rem;
+            display: flex; align-items: center; gap: 6px;
+            padding: 0; margin-bottom: 22px;
+            transition: color 0.2s;
+        }
+        .form-back-btn:hover { color: #fff; }
+
+        .form-panel-title {
+            font-size: 1.4rem; font-weight: 700; color: #fff;
+            margin-bottom: 6px; text-align: center;
+        }
+        .form-panel-sub {
+            font-size: 0.88rem; color: rgba(255,255,255,0.6);
+            margin-bottom: 24px; text-align: center; line-height: 1.5;
+        }
+
+        .req-label {
+            display: block; font-size: 0.82rem; font-weight: 600;
+            color: rgba(255,255,255,0.7); margin-bottom: 6px; letter-spacing: 0.03em;
+        }
+        .req-textarea, .req-select {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.20);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 4px;
+            resize: vertical;
+        }
+        .req-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.20);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 4px;
+        }
+        .req-input::placeholder, .req-textarea::placeholder { color: rgba(255,255,255,0.35); }
+        .req-textarea:focus, .req-select:focus, .req-input:focus { border-color: rgba(255,255,255,0.55); }
+        .req-input.field-error, .req-textarea.field-error, .req-select.field-error {
+            border-color: #e74c3c;
+        }
+        .req-select option { background: #1e2a44; color: #fff; }
+        .req-star { color: #e74c3c; margin-left: 2px; }
+        .req-field-err { color: #e74c3c; font-size: 0.78rem; margin-bottom: 12px; min-height: 16px; }
+
+        .btn-submit-req {
+            width: 100%;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff; border: none; border-radius: 30px;
+            padding: 13px; font-size: 0.95rem; font-weight: 600;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .btn-submit-req:hover { opacity: 0.88; }
+        .btn-submit-req:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .req-error { color: #e74c3c; font-size: 0.85rem; margin-top: 10px; text-align: center; }
+        .req-success {
+            text-align: center; padding: 20px 0;
+            color: rgba(255,255,255,0.85); font-size: 0.95rem; line-height: 1.6;
+        }
+        .req-success .check-ring {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: rgba(46,204,113,0.18); border: 2px solid rgba(46,204,113,0.5);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px;
+        }
+        .req-success .check-ring i { font-size: 1.8rem; color: #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <!-- ① Blurred home-page replica in background -->
+    <div class="bg-page" aria-hidden="true">
+        <div class="bg-navbar">
+            <span class="bg-navbar-brand">Antarikchya Hydropower Portal</span>
+            <div class="bg-navbar-links">
+                <span>Home</span>
+                <span>Watershed Delineation</span>
+                <span>My Stations</span>
+            </div>
+            <button class="bg-navbar-btn">Sign In</button>
+        </div>
+
+        <div class="bg-hero">
+            <div class="bg-hero-text">
+                <h1>Nepal Hydropower</h1>
+                <p>Accurate watershed analysis for the hydrogeology sector.</p>
+            </div>
+        </div>
+
+        <div class="bg-wave">
+            <svg viewBox="0 0 1200 60" preserveAspectRatio="none">
+                <path d="M985.66,46.42C906.67,36,823.78,15.5,743.84,7.1c-82.26-8.67-168.06-8.17-250.45.19-57.84,5.87-114,15.54-172,20.93A600.21,600.21,0,0,1,0,13.68V60H1200V47.9C1132.19,59.46,1055.71,55.66,985.66,46.42Z"/>
+            </svg>
+        </div>
+
+        <div class="bg-features">
+            <div class="bg-card">
+                <div class="bg-card-icon"><i class="fas fa-map-marked-alt"></i></div>
+                <h3>Watershed Delineation</h3>
+                <p>Advanced boundary analysis using MERIT-Hydro datasets.</p>
+                <button class="bg-card-btn">Start Delineation</button>
+            </div>
+            <div class="bg-card">
+                <div class="bg-card-icon"><i class="fas fa-chart-line"></i></div>
+                <h3>Discharge Prediction</h3>
+                <p>AI-powered discharge prediction using hydrogeology models.</p>
+                <button class="bg-card-btn">Select Station</button>
+            </div>
+            <div class="bg-card">
+                <div class="bg-card-icon"><i class="fas fa-layer-group"></i></div>
+                <h3>Watershed Report</h3>
+                <p>Detailed analysis covering land use, buildings &amp; more.</p>
+                <button class="bg-card-btn">Generate Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ② Dark overlay -->
+    <div class="overlay"></div>
+
+    <!-- ③ Glassmorphism restriction card -->
+    <div class="modal-wrapper">
+        <div class="glass-card">
+
+            <!-- Panel 1: Access denied message -->
+            <div class="card-panel card-panel-info" id="panelInfo">
+                <div class="lock-ring">
+                    <i class="fas fa-lock"></i>
+                </div>
+                {% if reason == 'free_tier' %}
+                <h2>Full Access Required</h2>
+                <p>The Discharge Prediction module is available to <strong>Full-tier</strong> accounts only.<br>
+                   Submit a request and the administrator will review it.</p>
+                {% elif reason == 'no_station' %}
+                <h2>No Station Assigned</h2>
+                <p>Your account has full-tier access, but no discharge station has been assigned yet.<br>
+                   Submit a request and the administrator will assign one.</p>
+                {% else %}
+                <h2>Access Restricted</h2>
+                <p>You do not have access to this feature.<br>Please contact the administrator.</p>
+                {% endif %}
+
+                <a href="{% url 'home' %}" class="btn-home">
+                    <i class="fas fa-home"></i>Back to Home
+                </a>
+
+                {% if reason == 'free_tier' or reason == 'no_station' %}
+                <br>
+                <button class="btn-request" type="button" onclick="showRequestForm()">
+                    <i class="fas fa-paper-plane"></i>
+                    {% if reason == 'free_tier' %}Request Full Access{% else %}Request Station Assignment{% endif %}
+                </button>
+                {% endif %}
+
+                <p class="card-footer-note">Logged in as {{ request.user.email }}</p>
+            </div>
+
+            <!-- Panel 2: Request form -->
+            <div class="card-panel card-panel-form" id="panelForm">
+                <button class="form-back-btn" type="button" onclick="showInfoPanel()">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <p class="form-panel-title">Request Access</p>
+                <p class="form-panel-sub">Fill in the form below. The admin will review your request shortly.</p>
+
+                <div id="formBody">
+                    <form id="accessRequestForm" onsubmit="submitRequest(event)" novalidate>
+                        {% csrf_token %}
+
+                        <label class="req-label" for="reqOrg">Organisation <span class="req-star">*</span></label>
+                        <input  id="reqOrg" name="organization" type="text" class="req-input"
+                                value="{{ request.user.organization }}" required
+                                placeholder="e.g. Nepal Electricity Authority">
+                        <div class="req-field-err" id="errOrg"></div>
+
+                        <label class="req-label" for="reqContact">Contact number <span class="req-star">*</span></label>
+                        <input  id="reqContact" name="contact_number" type="tel" class="req-input"
+                                value="{{ request.user.phone_number }}" required
+                                placeholder="e.g. +977-9800000000">
+                        <div class="req-field-err" id="errContact"></div>
+
+                        <label class="req-label" for="reqStation">Station requested <span class="req-star">*</span></label>
+                        <select id="reqStation" name="station" class="req-select" required>
+                            <option value="">— Select a station —</option>
+                            {% for s in stations %}
+                            <option value="{{ s.pk }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="req-field-err" id="errStation"></div>
+
+                        <label class="req-label" for="reqMessage">Why do you need access? <span class="req-star">*</span></label>
+                        <textarea id="reqMessage" name="message" class="req-textarea" rows="3"
+                                  required placeholder="Briefly describe your role and how you will use this module..."></textarea>
+                        <div class="req-field-err" id="errMessage"></div>
+
+                        <button class="btn-submit-req" type="submit" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i>&nbsp; Send Request
+                        </button>
+                        <div class="req-error" id="reqError" style="display:none;"></div>
+                    </form>
+                </div>
+
+                <!-- Success state (hidden until submit succeeds) -->
+                <div id="successMsg" style="display:none;" class="req-success">
+                    <div class="check-ring"><i class="fas fa-check"></i></div>
+                    <strong style="color:#fff;font-size:1.05rem;">Request sent!</strong><br>
+                    The administrator has been notified and will review your request.<br>
+                    <a href="{% url 'home' %}" class="btn-home" style="margin-top:24px;display:inline-flex;">
+                        <i class="fas fa-home"></i>Back to Home
+                    </a>
+                </div>
+
+                <p class="card-footer-note" style="margin-top:16px;">{{ request.user.email }}</p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const CSRF = '{{ csrf_token }}';
+        const REQUEST_URL = '{% url "users:request_access" %}';
+
+        function showRequestForm() {
+            document.getElementById('panelInfo').classList.add('hidden');
+            document.getElementById('panelForm').classList.add('active');
+        }
+        function showInfoPanel() {
+            document.getElementById('panelForm').classList.remove('active');
+            document.getElementById('panelInfo').classList.remove('hidden');
+        }
+
+        async function submitRequest(e) {
+            e.preventDefault();
+            const btn    = document.getElementById('submitBtn');
+            const errDiv = document.getElementById('reqError');
+
+            // Clear previous field errors
+            ['Org','Contact','Station','Message'].forEach(f => {
+                const el = document.getElementById('err' + f);
+                if (el) el.textContent = '';
+            });
+            ['reqOrg','reqContact','reqStation','reqMessage'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('field-error');
+            });
+            errDiv.style.display = 'none';
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>&nbsp; Sending…';
+
+            const form = document.getElementById('accessRequestForm');
+            const body = new FormData(form);
+
+            try {
+                const res  = await fetch(REQUEST_URL, { method: 'POST', body, headers: { 'X-CSRFToken': CSRF } });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('formBody').style.display = 'none';
+                    document.getElementById('successMsg').style.display = 'block';
+                } else {
+                    // Show per-field errors if returned
+                    if (data.errors) {
+                        const fieldMap = {
+                            organization:   ['errOrg',     'reqOrg'],
+                            contact_number: ['errContact', 'reqContact'],
+                            station:        ['errStation', 'reqStation'],
+                            message:        ['errMessage', 'reqMessage'],
+                        };
+                        Object.entries(data.errors).forEach(([field, msg]) => {
+                            const ids = fieldMap[field];
+                            if (ids) {
+                                const errEl = document.getElementById(ids[0]);
+                                const inputEl = document.getElementById(ids[1]);
+                                if (errEl)   errEl.textContent = msg;
+                                if (inputEl) inputEl.classList.add('field-error');
+                            }
+                        });
+                    }
+                    errDiv.textContent = data.error || 'Something went wrong. Please try again.';
+                    errDiv.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i>&nbsp; Send Request';
+                }
+            } catch (_) {
+                errDiv.textContent = 'Network error. Please check your connection and try again.';
+                errDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i>&nbsp; Send Request';
+            }
+        }
+    </script>
+
+</body>
+</html>

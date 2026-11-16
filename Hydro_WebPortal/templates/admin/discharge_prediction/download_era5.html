@@ -1,0 +1,212 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:discharge_prediction_dischargestation_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div id="content-main">
+    <div class="era5-card">
+        <h2 class="era5-title">Download ERA5 Data for <span class="era5-station">{{ station.name }}</span></h2>
+        <div class="era5-section">
+            <h3>Station Information</h3>
+            <ul class="era5-info-list">
+                <li><strong>Station ID:</strong> {{ station.station_id }}</li>
+                <li><strong>Location:</strong> {{ station.location.y|floatformat:4 }}°N, {{ station.location.x|floatformat:4 }}°E</li>
+                <li><strong>River:</strong> {{ station.river_name }}</li>
+                <li><strong>Catchment Area:</strong> {{ station.catchment_area }} km²</li>
+                <li><strong>Current ERA5 Records:</strong> 
+                    <span id="current-data-count">Loading...</span>
+                </li>
+            </ul>
+        </div>
+        <form method="post" class="era5-form">
+            {% csrf_token %}
+            <div class="era5-section">
+                <label for="start_date" class="era5-label">Start Date:</label>
+                <input type="date" name="start_date" id="start_date" value="{{ default_start_date }}" required class="era5-input">
+                <span class="era5-help">Start date for ERA5 data download <br><em>(recommended: 90-120 days ago)</em></span>
+            </div>
+            <div class="era5-section">
+                <label for="end_date" class="era5-label">End Date:</label>
+                <input type="date" name="end_date" id="end_date" value="{{ default_end_date }}" required class="era5-input">
+                <span class="era5-help">End date for ERA5 data download <br><em>(ERA5 has ~7 day delay)</em></span>
+            </div>
+            <div class="era5-section">
+                <label for="use_real_data" class="era5-label">
+                    <input type="checkbox" name="use_real_data" id="use_real_data" class="era5-checkbox">
+                    <span>Use Real ERA5 Data</span>
+                </label>
+                <span class="era5-help">
+                    Check this to download real ERA5 data (requires CDS API key).<br>
+                    Uncheck for simulated data (for testing).
+                </span>
+            </div>
+            <div class="era5-section era5-info-panel">
+                <h3>Data Download Information</h3>
+                <ul class="era5-info-list">
+                    <li><strong>Real ERA5 Data:</strong> Downloaded from Copernicus Climate Data Store</li>
+                    <li><strong>Features:</strong> Temperature, Precipitation, Wind (U/V), Humidity</li>
+                    <li><strong>Spatial Resolution:</strong> ~25km grid around station coordinates</li>
+                    <li><strong>Temporal Resolution:</strong> Daily averages</li>
+                    <li><strong>Processing Time:</strong> 5-15 minutes depending on date range</li>
+                    <li><strong>CDS API Required:</strong> For real data download</li>
+                </ul>
+            </div>
+            <div class="era5-submit-row">
+                <input type="submit" value="Download ERA5 Data" class="era5-btn" />
+                <a href="{% url 'admin:discharge_prediction_dischargestation_changelist' %}" class="era5-btn era5-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Load current ERA5 data count
+fetch("{% url 'admin:discharge_station_era5_status' station.pk %}")
+    .then(response => response.json())
+    .then(data => {
+        const countElement = document.getElementById('current-data-count');
+        if (data.has_data) {
+            countElement.innerHTML = `
+                <strong>${data.total_records} records</strong><br>
+                <small>Range: ${data.earliest_date} to ${data.latest_date}</small><br>
+                <small>Complete: ${data.complete_records}/${data.total_records} (${data.completion_rate.toFixed(1)}%)</small>
+            `;
+        } else {
+            countElement.innerHTML = '<em>No ERA5 data available</em>';
+        }
+    })
+    .catch(error => {
+        document.getElementById('current-data-count').innerHTML = '<em>Error loading data</em>';
+    });
+
+// Update end date when start date changes (minimum gap handling)
+document.getElementById('start_date').addEventListener('change', function() {
+    const startDate = new Date(this.value);
+    const endDateInput = document.getElementById('end_date');
+    const endDate = new Date(endDateInput.value);
+    
+    // Ensure end date is after start date
+    if (endDate <= startDate) {
+        const newEndDate = new Date(startDate);
+        newEndDate.setDate(newEndDate.getDate() + 7); // Add 7 days minimum
+        endDateInput.value = newEndDate.toISOString().split('T')[0];
+    }
+});
+</script>
+
+<style>
+
+.era5-card {
+    max-width: 600px;
+    margin: 30px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 32px 28px 24px 28px;
+}
+.era5-title {
+    font-size: 2rem;
+    margin-bottom: 18px;
+    color: #1a3a5d;
+    font-weight: 600;
+}
+.era5-station {
+    color: #1976d2;
+    font-weight: 700;
+}
+.era5-section {
+    margin-bottom: 24px;
+    padding: 18px 16px;
+    background: #f4f8fc;
+    border-radius: 8px;
+    border: 1px solid #e0e7ef;
+}
+.era5-label {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #1a3a5d;
+    margin-bottom: 8px;
+    display: block;
+}
+.era5-input {
+    font-size: 1.1rem;
+    padding: 7px 12px;
+    border-radius: 5px;
+    border: 1px solid #b0bec5;
+    margin-bottom: 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.era5-checkbox {
+    transform: scale(1.2);
+    margin-right: 8px;
+}
+.era5-help {
+    font-size: 0.98rem;
+    color: #1976d2;
+    margin-top: 4px;
+    display: block;
+}
+.era5-info-panel {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+}
+.era5-info-list {
+    margin-left: 18px;
+    font-size: 1rem;
+    color: #333;
+}
+.era5-info-list li {
+    margin-bottom: 7px;
+}
+#current-data-count {
+    font-family: monospace;
+    background-color: #fff;
+    padding: 5px 10px;
+    border-radius: 3px;
+    display: inline-block;
+    font-size: 1.05rem;
+    color: #388e3c;
+    border: 1px solid #c8e6c9;
+}
+.era5-submit-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 18px;
+}
+.era5-btn {
+    font-size: 1.1rem;
+    padding: 8px 22px;
+    border-radius: 6px;
+    border: none;
+    background: #1976d2;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+.era5-btn:hover {
+    background: #1565c0;
+}
+.era5-cancel {
+    background: #bdbdbd;
+    color: #fff;
+}
+.era5-cancel:hover {
+    background: #757575;
+}
+</style>
+{% endblock %}

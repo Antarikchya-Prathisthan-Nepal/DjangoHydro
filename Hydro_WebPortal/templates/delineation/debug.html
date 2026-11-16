@@ -1,0 +1,210 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Elevation Debug</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% csrf_token %}
+    <script>
+      window.CSRF_TOKEN = '{{ csrf_token }}';
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .loading {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Elevation Data Debug</h1>
+    <button id="test-button">Test Delineation API</button>
+    <div id="debug-output" class="loading">Loading... Please wait while we test the API.</div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Debug page loaded');
+            
+            // Function to debug elevation data
+            function testElevationData() {
+                console.log('Testing elevation data fetch...');
+                const debugOutput = document.getElementById('debug-output');
+                debugOutput.className = 'loading';
+                debugOutput.innerHTML = 'Making API request to delineate watershed...';
+                
+                // Start with a request to the API
+                fetch("/delineation/api/delineate/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": window.CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ 
+                        latitude: 27.7, 
+                        longitude: 85.7, 
+                        method: "vector", 
+                        precision: "high" 
+                    })
+                })
+                .then(response => {
+                    // Check if the response is OK
+                    if (!response.ok) {
+                        debugOutput.className = 'error';
+                        debugOutput.innerHTML = `<h2>HTTP Error: ${response.status}</h2>`;
+                        debugOutput.innerHTML += `<p>Status Text: ${response.statusText}</p>`;
+                        
+                        // Try to get the response text to show error details
+                        return response.text().then(text => {
+                            try {
+                                // Try to parse as JSON
+                                const errorData = JSON.parse(text);
+                                debugOutput.innerHTML += `<h3>Error Details:</h3><pre>${JSON.stringify(errorData, null, 2)}</pre>`;
+                            } catch (e) {
+                                // If not JSON, show as HTML or text
+                                if (text.includes('<!DOCTYPE html>')) {
+                                    debugOutput.innerHTML += '<h3>Server returned HTML (see console for details)</h3>';
+                                    console.error('Server returned HTML instead of JSON:', text);
+                                } else {
+                                    debugOutput.innerHTML += `<h3>Response Text:</h3><pre>${text}</pre>`;
+                                }
+                            }
+                            throw new Error(`HTTP error ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Full response:', data);
+                    debugOutput.className = '';
+                    
+                    // Start building the output
+                    let outputHTML = '<h2>API Response Received</h2>';
+                    outputHTML += `<p>Success: ${data.success ? 'Yes' : 'No'}</p>`;
+                    
+                    if (data.watershed_id) {
+                        outputHTML += `<p>Watershed ID: ${data.watershed_id}</p>`;
+                    }
+                    
+                    if (data.area_km2) {
+                        outputHTML += `<p>Watershed Area: ${data.area_km2.toLocaleString()} km²</p>`;
+                    }
+                    
+                    // Check for elevation stats
+                    console.log('Has elevation_stats?', !!data.elevation_stats);
+                    if (data.elevation_stats) {
+                        outputHTML += '<h2>Elevation Statistics Found:</h2>';
+                        
+                        // Show all elevation stats properties
+                        outputHTML += '<h3>Elevation Stats Properties:</h3>';
+                        outputHTML += '<ul>';
+                        for (const [key, value] of Object.entries(data.elevation_stats)) {
+                            if (key !== 'areas_below_threshold') {
+                                outputHTML += `<li><strong>${key}:</strong> ${value}</li>`;
+                            }
+                        }
+                        outputHTML += '</ul>';
+                        
+                        // Show threshold data if available
+                        if (data.elevation_stats.areas_below_threshold && 
+                            Array.isArray(data.elevation_stats.areas_below_threshold)) {
+                            
+                            outputHTML += `<h3>Areas Below Threshold (${data.elevation_stats.areas_below_threshold.length} items):</h3>`;
+                            
+                            // Log the data for debugging
+                            console.log('Threshold data:', data.elevation_stats.areas_below_threshold);
+                            
+                            // Display the data in a table
+                            outputHTML += '<table border="1"><tr><th>Threshold</th><th>Area (km²)</th><th>Percentage</th><th>Is Fallback</th></tr>';
+                            
+                            data.elevation_stats.areas_below_threshold.forEach((item, index) => {
+                                console.log(`Item ${index}:`, item);
+                                outputHTML += `<tr>
+                                    <td>Below ${item.threshold}m</td>
+                                    <td>${typeof item.area_km2 === 'number' ? item.area_km2.toLocaleString() : item.area_km2}</td>
+                                    <td>${typeof item.percentage === 'number' ? item.percentage.toFixed(2) : item.percentage}%</td>
+                                    <td>${item.is_fallback ? 'Yes' : 'No'}</td>
+                                </tr>`;
+                            });
+                            
+                            outputHTML += '</table>';
+                        } else {
+                            outputHTML += '<p>No areas_below_threshold data found in the elevation_stats.</p>';
+                            if (data.elevation_stats.areas_below_threshold) {
+                                outputHTML += `<p>areas_below_threshold type: ${typeof data.elevation_stats.areas_below_threshold}</p>`;
+                                outputHTML += `<p>Value: ${JSON.stringify(data.elevation_stats.areas_below_threshold)}</p>`;
+                            }
+                        }
+                    } else {
+                        outputHTML += '<h2>No elevation_stats in response</h2>';
+                    }
+                    
+                    // Show the full response data
+                    outputHTML += '<h3>Full Response Data:</h3>';
+                    outputHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    
+                    // Update the debug output
+                    debugOutput.innerHTML = outputHTML;
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    if (debugOutput.className !== 'error') {
+                        debugOutput.className = 'error';
+                        debugOutput.innerHTML = `<h2>Error</h2><p>${err.message}</p>`;
+                    }
+                });
+            }
+            
+            // Set up the test button
+            document.getElementById('test-button').addEventListener('click', testElevationData);
+            
+            // Also run the test on page load
+            testElevationData();
+        });
+    </script>
+</body>
+</html>

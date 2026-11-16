@@ -1,0 +1,1 @@
+from all_humidity_stations import HUMIDITY_STATIONS

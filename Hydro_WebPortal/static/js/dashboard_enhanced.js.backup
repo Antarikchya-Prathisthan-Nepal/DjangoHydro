@@ -1,0 +1,1203 @@
+// Global variables
+let dischargeChart = null;
+let map = null;
+let currentStation = null;
+let refreshInterval = null;
+let lastUpdateTime = null;
+let allChartPredictionData = [];
+let chartWindowSize = 14; // Default number of days to show in chart
+let viewAllData = true;   // Default view mode is "View All Data"
+let isDragging = false;   // Track if user is dragging the chart
+let dragStartX = 0;       // X position where drag started
+let currentSliderValue = 0; // Track current slider position during drag
+let minChartWindowSize = 3; // Minimum window size (max zoom in)
+let maxChartWindowSize = 60; // Maximum window size (max zoom out)
+
+// Auto-refresh every 5 minutes for chart, every 60s for table
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const TABLE_REFRESH_INTERVAL = 60 * 1000; // 60 second
+let tableRefreshTimer = null;
+
+// Initialize default dates for observations
+function initializeDates() {
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+}
+
+// Update slider visibility based on view mode
+function updateSliderVisibility() {
+    const sliderContainer = document.getElementById('chartWindowSlider').parentElement;
+    
+    // When viewing all data, hide the slider
+    if (viewAllData) {
+        sliderContainer.style.display = 'none';
+    } else {
+        sliderContainer.style.display = 'block';
+    }
+}
+
+// Show chart error
+function showChartError(message) {
+    const container = document.querySelector('.chart-container');
+    container.innerHTML = `<div class="error" style="margin: 2rem; text-align: center;">${message}</div>`;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeMap();
+    loadStations();
+    startAutoRefresh();
+    initializeDates();
+    
+    // Set up chart window slider
+    document.getElementById('chartWindowSlider').addEventListener('input', updateChartWithSlider);
+    
+    // Set up view mode toggle checkbox
+    document.getElementById('viewModeToggle').addEventListener('change', toggleViewMode);
+    
+    // Show latest predictions if station is selected
+    if (window.currentStation) {
+        showLatestPredictions(window.currentStation.station_id);
+    }
+    
+    // Start periodic table refresh
+    tableRefreshTimer = setInterval(() => {
+        if (currentStation) {
+            showLatestPredictions(currentStation.station_id);
+        }
+    }, TABLE_REFRESH_INTERVAL);
+    
+    // Update slider visibility based on initial view mode
+    updateSliderVisibility();
+    
+    // Set up chart interaction functionality (dragging and zooming)
+    setupChartDragging();
+});
+
+// Initialize Leaflet map
+function initializeMap() {
+    map = L.map('map').setView([28.3949, 84.1240], 6); // Nepal center
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+}
+
+// Load available stations
+async function loadStations() {
+    try {
+        const response = await fetch('/discharge-prediction/api/stations/');
+        const data = await response.json();
+        let stations = [];
+        if (Array.isArray(data)) {
+            stations = data;
+        } else if (data.success && Array.isArray(data.stations)) {
+            stations = data.stations;
+        }
+        if (stations.length > 0) {
+            window.stationsData = stations;
+            displayStations(stations);
+        } else {
+            document.getElementById('stationList').innerHTML = 
+                '<div class="error">Failed to load stations</div>';
+        }
+    } catch (error) {
+        console.error('Error loading stations:', error);
+        document.getElementById('stationList').innerHTML = 
+            '<div class="error">Error loading stations</div>';
+    }
+}
+
+// Display stations list
+function displayStations(stations) {
+    const stationList = document.getElementById('stationList');
+    const stationSelect = document.getElementById('stationSelect');
+    
+    // Clear existing options and list
+    stationList.innerHTML = '';
+    stationSelect.innerHTML = '<option value="">Select a station...</option>';
+    
+    stations.forEach(station => {
+        // Add to station list (left panel)
+        const stationItem = document.createElement('div');
+        stationItem.className = 'station-item';
+        stationItem.innerHTML = `
+            <div class="station-name">${station.name}</div>
+            <div class="station-river">${station.river_name}</div>
+        `;
+        stationItem.addEventListener('click', () => selectStation(station, stationItem));
+        stationList.appendChild(stationItem);
+        
+        // Add to station dropdown (header)
+        const option = document.createElement('option');
+        option.value = station.station_id;
+        option.textContent = `${station.name} - ${station.river_name}`;
+        stationSelect.appendChild(option);
+    });
+    
+    // Auto-select first station
+    if (stations.length > 0) {
+        const firstItem = stationList.querySelector('.station-item');
+        selectStation(stations[0], firstItem);
+        stationSelect.value = stations[0].station_id;
+        // Ensure table is populated after station is selected
+        setTimeout(() => {
+            showLatestPredictions(stations[0].station_id);
+        }, 100);
+    }
+}
+
+// Handle station change from dropdown
+function handleStationChange() {
+    const stationSelect = document.getElementById('stationSelect');
+    const stationId = stationSelect.value;
+    
+    if (!stationId) return;
+    
+    // Find the station data
+    const stations = window.stationsData || [];
+    const station = stations.find(s => s.station_id == stationId);
+    
+    if (station) {
+        // Find corresponding station item and select it
+        const stationItems = document.querySelectorAll('.station-item');
+        stationItems.forEach((item, index) => {
+            item.classList.remove('active');
+            if (stations[index] && stations[index].station_id == stationId) {
+                item.classList.add('active');
+            }
+        });
+        
+        selectStation(station);
+    }
+}
+
+// Select a station
+async function selectStation(station, element) {
+    currentStation = station;
+    
+    // Update UI
+    document.querySelectorAll('.station-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    if (element) {
+        element.classList.add('active');
+    }
+    
+    // Update dropdown
+    const stationSelect = document.getElementById('stationSelect');
+    stationSelect.value = station.station_id;
+    document.getElementById('stationTitle').textContent = 
+        `${station.name.toUpperCase()} - PREDICTIONS`;
+    // Load station details, map, and prediction data
+    await loadStationDetails(station);
+    updateMapLocation(station);
+    // Fetch predictions to determine available date range
+    let apiUrl = `/discharge-prediction/api/stations/${station.station_id}/telemetry/?predictions_only=true`;
+    let predictions = [];
+    try {
+        const resp = await fetch(apiUrl);
+        const data = await resp.json();
+        if (data.success && data.telemetry_data && Array.isArray(data.telemetry_data.predictions) && data.telemetry_data.predictions.length > 0) {
+            predictions = data.telemetry_data.predictions;
+        }
+    } catch (e) {
+        predictions = [];
+    }
+    // Set date pickers to match prediction range if available
+    if (predictions.length > 0) {
+        predictions.sort((a, b) => new Date(a.date) - new Date(b.date));
+        const minDate = predictions[0].date;
+        const maxDate = predictions[predictions.length - 1].date;
+        document.getElementById('startDate').value = minDate ? minDate.split('T')[0] : '';
+        document.getElementById('endDate').value = maxDate ? maxDate.split('T')[0] : '';
+    } else {
+        // fallback to today and week ago if no predictions
+        initializeDates();
+    }
+    await loadPredictionData(station.station_id);
+    // Load initial observations data
+    refreshObservations();
+}
+
+// Load station details
+async function loadStationDetails(station) {
+    const detailsDiv = document.getElementById('stationDetails');
+    detailsDiv.innerHTML = `
+        <div class="info-row">
+            <span class="info-label">Station ID:</span>
+            <span class="info-value">${station.station_id}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">River:</span>
+            <span class="info-value">${station.river_name}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Coordinates:</span>
+            <span class="info-value">${station.coordinates ? 
+                `${station.coordinates[0].toFixed(4)}, ${station.coordinates[1].toFixed(4)}` : 
+                'N/A'}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value">Active</span>
+        </div>
+    `;
+}
+
+// Update map location
+function updateMapLocation(station) {
+    if (station.coordinates && map) {
+        const [lat, lng] = station.coordinates;
+        
+        // Clear existing markers
+        map.eachLayer(layer => {
+            if (layer instanceof L.Marker) {
+                map.removeLayer(layer);
+            }
+        });
+        
+        // Add new marker
+        L.marker([lat, lng])
+            .addTo(map)
+            .bindPopup(`<b>${station.name}</b><br>${station.river_name}`)
+            .openPopup();
+        
+        // Center map on station
+        map.setView([lat, lng], 10);
+    }
+}
+
+// Load prediction data for chart
+async function loadPredictionData(stationId) {
+    try {
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        refreshIndicator.textContent = 'Updating...';
+        refreshIndicator.classList.add('updating');
+        
+        // Include explicit date parameters to get all available data
+        // Use a wide date range to capture all predictions
+        const startDate = '2024-01-01'; // This will cover all historical data from January 2024
+        const endDate = '2026-12-31';   // Future date to capture all predictions
+        
+        const response = await fetch(`/discharge-prediction/api/stations/${stationId}/telemetry/?predictions_only=true&start_date=${startDate}&end_date=${endDate}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            createPredictionsChart(data.telemetry_data);
+            updateLastUpdatedTime();
+        } else {
+            console.error('Error loading prediction data:', data.error);
+            showChartError('Failed to load prediction data');
+        }
+    } catch (error) {
+        console.error('Error loading prediction data:', error);
+        showChartError('Error loading prediction data');
+    } finally {
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        refreshIndicator.textContent = 'Auto-refresh: Active';
+        refreshIndicator.classList.remove('updating');
+    }
+}
+
+// Create predictions chart
+function createPredictionsChart(telemetryData) {
+    const canvas = document.getElementById('dischargeChart');
+    console.debug('createPredictionsChart: canvas element:', canvas);
+    if (!canvas) {
+        showChartError('Chart canvas not found.');
+        console.error('Chart canvas with id "dischargeChart" not found in DOM.');
+        return;
+    }
+    
+    // Process the incoming data regardless of chart state
+    // Store all predictions data for slider functionality
+    allChartPredictionData = (telemetryData.predictions || []).map(p => {
+        // Ensure consistent date format (YYYY-MM-DD)
+        const dateStr = p.date.split('T')[0];
+        return {
+            ...p,
+            date: dateStr, // Use string date format consistently
+            originalDate: p.date // Keep original for debugging
+        };
+    });
+    
+    if (allChartPredictionData.length === 0) {
+        showChartError('No prediction data available');
+        return;
+    }
+    
+    // Only get context and create new chart if we need to
+    let ctx;
+    try {
+        ctx = canvas.getContext('2d');
+    } catch (e) {
+        showChartError('Error accessing canvas context.');
+        console.error('Error getting 2d context for dischargeChart:', e);
+        return;
+    }
+    if (!ctx) {
+        showChartError('Canvas context is null.');
+        console.error('Canvas context for dischargeChart is null.');
+        return;
+    }
+    
+    // Sort predictions by date (ascending)
+    allChartPredictionData.sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Debug: Log all available dates
+    console.log('All available dates:', allChartPredictionData.map(d => d.date));
+    
+    // Configure slider
+    const slider = document.getElementById('chartWindowSlider');
+    slider.min = 0;
+    slider.max = Math.max(0, allChartPredictionData.length - chartWindowSize);
+    slider.value = slider.max; // Show latest data by default
+    updateSliderLabel();
+    
+    // Use appropriate data based on view mode
+    let predictionData;
+    if (viewAllData) {
+        // Use all data
+        predictionData = allChartPredictionData;
+    } else {
+        // Use windowed data
+        const startIdx = parseInt(slider.value);
+        const endIdx = Math.min(startIdx + chartWindowSize, allChartPredictionData.length);
+        predictionData = allChartPredictionData.slice(startIdx, endIdx);
+    }
+    
+    // Update slider visibility
+    updateSliderVisibility();
+    
+    // Generate arrays of data to ensure all points are included
+    const dateLabels = predictionData.map(d => d.date);
+    const dischargeValues = predictionData.map(d => d.discharge);
+    const energyValues = predictionData.map(d => d.energy);
+    
+    // Debug log all points being plotted
+    console.log('Plotting data points:');
+    dateLabels.forEach((date, i) => {
+        console.log(`${date}: discharge=${dischargeValues[i]}, energy=${energyValues[i]}`);
+    });
+    
+    // Instead of always destroying and recreating the chart, update it if it exists
+    if (dischargeChart) {
+        // Update existing chart data
+        dischargeChart.data.labels = dateLabels;
+        dischargeChart.data.datasets[0].data = dischargeValues;
+        dischargeChart.data.datasets[1].data = energyValues;
+        
+        // Update the chart with no animation for immediate feedback
+        dischargeChart.update('none');
+    } else {
+        // Create new chart only if it doesn't exist
+        dischargeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dateLabels,
+            datasets: [
+                {
+                    label: 'Predicted Discharge',
+                    data: dischargeValues,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    borderWidth: 3,
+                    pointRadius: 5, // Increased for better visibility
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#e74c3c',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    fill: true,
+                    tension: 0, // Disable curve smoothing to show exact points
+                    yAxisID: 'y',
+                    spanGaps: false
+                },
+                {
+                    label: 'Predicted Energy',
+                    data: energyValues,
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(41, 128, 185, 0.1)',
+                    borderWidth: 3,
+                    pointRadius: 5, // Increased for better visibility
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#2980b9',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    fill: false,
+                    tension: 0, // Disable curve smoothing to show exact points
+                    yAxisID: 'y1',
+                    spanGaps: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#e74c3c',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const point = predictionData[context.dataIndex];
+                            if (context.dataset.label === 'Predicted Discharge') {
+                                return [
+                                    `Discharge: ${context.parsed.y.toFixed(3)} m³/s`,
+                                    `Confidence: ${((point.confidence || 0.9) * 100).toFixed(1)}%`
+                                ];
+                            } else if (context.dataset.label === 'Predicted Energy') {
+                                return `Energy: ${context.parsed.y.toFixed(3)} MWh`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: {
+                            day: 'MMM dd'
+                        },
+                        // Force parser to use the date string directly
+                        parser: 'yyyy-MM-dd'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: '#2c3e50',
+                        source: 'data', // Use 'data' instead of 'auto'
+                        autoSkip: false, // Don't skip any labels
+                        maxRotation: 45 // Rotate labels if needed
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Discharge (m³/s)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: '#2c3e50'
+                    },
+                    position: 'left',
+                },
+                y1: {
+                    title: {
+                        display: true,
+                        text: 'Energy (MWh)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2980b9'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        color: '#2980b9'
+                    },
+                    position: 'right',
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            }
+        }
+    });
+}
+
+// Show chart error
+function showChartError(message) {
+    const container = document.querySelector('.chart-container');
+    container.innerHTML = `<div class="error" style="margin: 2rem; text-align: center;">${message}</div>`;
+}
+
+// Update last updated time
+function updateLastUpdatedTime() {
+    lastUpdateTime = new Date();
+    document.getElementById('lastUpdated').textContent = 
+        `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
+}
+
+// This function is now defined at the end of the file
+
+// Initialize default dates for observations
+function initializeDates() {
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+}
+
+// This function is now defined at the top of the file
+
+// Refresh observations data
+function refreshObservations() {
+    if (!currentStation) {
+        alert('Please select a station first');
+        return;
+    }
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const tbody = document.getElementById('observationsTableBody');
+    // Show loading only until valid data is received
+    tbody.innerHTML = '<tr><td colspan="3" class="loading">Loading predictions data...</td></tr>';
+    if (!startDate || !endDate) {
+        // If no dates selected, show latest predictions
+        showLatestPredictions(currentStation.station_id);
+        return;
+    }
+    // Use the same API and structure as the graph
+    let apiUrl = `/discharge-prediction/api/stations/${currentStation.station_id}/telemetry/?predictions_only=true&start_date=${startDate}&end_date=${endDate}`;
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            // Only render table if valid, non-empty prediction data is received
+            if (data.success && data.telemetry_data && Array.isArray(data.telemetry_data.predictions) && data.telemetry_data.predictions.length > 0) {
+                // Filter out any predictions with missing or invalid date
+                const validPreds = data.telemetry_data.predictions.filter(p => p.date && !isNaN(Date.parse(p.date)));
+                if (validPreds.length > 0) {
+                    populateObservationsTable(validPreds);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" class="loading">No available data.</td></tr>';
+                }
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" class="loading">No available data.</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching predictions:', error);
+            tbody.innerHTML = '<tr><td colspan="3" class="loading">Error loading predictions data</td></tr>';
+        });
+}
+
+// Populate observations table
+function populateObservationsTable(predictions) {
+    const tbody = document.getElementById('observationsTableBody');
+    tbody.innerHTML = '';
+    if (!predictions || predictions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="loading">No available data.</td></tr>';
+        return;
+    }
+    predictions.forEach(point => {
+        const date = new Date(point.date);
+        const dateStr = date.toLocaleDateString();
+        const discharge = point.discharge !== undefined ? point.discharge.toFixed(3) : 'N/A';
+        const energy = point.energy !== undefined ? point.energy.toFixed(3) : 'N/A';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${dateStr}</td>
+            <td>${discharge}</td>
+            <td>${energy}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Update slider label with date range
+function updateSliderLabel() {
+    const slider = document.getElementById('chartWindowSlider');
+    const startIdx = parseInt(slider.value);
+    const endIdx = Math.min(startIdx + chartWindowSize, allChartPredictionData.length);
+    
+    if (allChartPredictionData.length === 0 || startIdx >= allChartPredictionData.length) {
+        document.getElementById('sliderWindowLabel').textContent = 'No data available';
+        return;
+    }
+    
+    const startDate = new Date(allChartPredictionData[startIdx].date).toLocaleDateString();
+    const endDate = new Date(allChartPredictionData[endIdx - 1].date).toLocaleDateString();
+    
+    // Calculate zoom percentage for display
+    const zoomPercentage = Math.round((1 - ((chartWindowSize - minChartWindowSize) / 
+                                      (maxChartWindowSize - minChartWindowSize))) * 100);
+    
+    document.getElementById('sliderWindowLabel').innerHTML = 
+        `${startDate} - ${endDate} <span style="opacity:0.7;">(${chartWindowSize} days, zoom: ${zoomPercentage}%)</span>`;
+}
+
+// Update chart based on slider position
+function updateChartWithSlider() {
+    if (!allChartPredictionData || allChartPredictionData.length === 0) {
+        return;
+    }
+    
+    // If we're in "View All Data" mode, don't update based on slider
+    if (viewAllData) {
+        return;
+    }
+    
+    // Update the slider's maximum value based on current window size
+    const slider = document.getElementById('chartWindowSlider');
+    const maxSliderValue = Math.max(0, allChartPredictionData.length - chartWindowSize);
+    slider.max = maxSliderValue;
+    
+    // Ensure the slider value is within valid range
+    slider.value = Math.min(parseInt(slider.value), maxSliderValue);
+    
+    const startIdx = parseInt(slider.value);
+    const endIdx = Math.min(startIdx + chartWindowSize, allChartPredictionData.length);
+    const visibleData = allChartPredictionData.slice(startIdx, endIdx);
+    
+    // Update the label showing the date range
+    updateSliderLabel();
+    
+    if (visibleData.length === 0) {
+        showChartError('No prediction data available in selected range');
+        return;
+    }
+    
+    // Log the visible data range after zoom/pan
+    console.log(`Displaying data window: ${visibleData.length} days (${visibleData[0].date} to ${visibleData[visibleData.length-1].date})`);
+    console.log(`Window size: ${chartWindowSize} days, Slider position: ${startIdx}/${maxSliderValue}`);
+    
+    // Generate arrays of data to ensure all points are included
+    const dateLabels = visibleData.map(d => d.date);
+    const dischargeValues = visibleData.map(d => d.discharge);
+    const energyValues = visibleData.map(d => d.energy);
+    
+    // Check if chart already exists
+    if (dischargeChart) {
+        // Update existing chart data without destroying the chart
+        dischargeChart.data.labels = dateLabels;
+        dischargeChart.data.datasets[0].data = dischargeValues;
+        dischargeChart.data.datasets[1].data = energyValues;
+        
+        // Update the chart
+        dischargeChart.update('none'); // Using 'none' animation mode for immediate update
+    } else {
+        // If chart doesn't exist yet, create it
+        const canvas = document.getElementById('dischargeChart');
+        let ctx = canvas.getContext('2d');
+        
+        // Debug log all points being plotted in slider view
+        console.log('Plotting slider data points:');
+        dateLabels.forEach((date, i) => {
+            console.log(`${date}: discharge=${dischargeValues[i]}, energy=${energyValues[i]}`);
+        });
+        
+        dischargeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dateLabels,
+                datasets: [
+                    {
+                        label: 'Predicted Discharge',
+                        data: dischargeValues,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 5, // Increased for better visibility
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#e74c3c',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        fill: true,
+                        tension: 0, // Disable curve smoothing
+                        yAxisID: 'y',
+                        spanGaps: false
+                    },
+                    {
+                        label: 'Predicted Energy',
+                        data: energyValues,
+                        borderColor: '#2980b9',
+                        backgroundColor: 'rgba(41, 128, 185, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 5, // Increased for better visibility
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#2980b9',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        fill: false,
+                        tension: 0, // Disable curve smoothing
+                        yAxisID: 'y1',
+                        spanGaps: false
+                    }
+                ]
+            },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#e74c3c',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const point = visibleData[context.dataIndex];
+                            if (context.dataset.label === 'Predicted Discharge') {
+                                return [
+                                    `Discharge: ${context.parsed.y.toFixed(3)} m³/s`,
+                                    `Confidence: ${((point.confidence || 0.9) * 100).toFixed(1)}%`
+                                ];
+                            } else if (context.dataset.label === 'Predicted Energy') {
+                                return `Energy: ${context.parsed.y.toFixed(3)} MWh`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'category', // Use category type for exact label control
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: '#2c3e50',
+                        autoSkip: false, // Don't skip any ticks
+                        maxRotation: 45, // Allow rotation for better fitting
+                        callback: function(value, index) {
+                            // Format the date as MMM dd
+                            const dateParts = dateLabels[index].split('-');
+                            const date = new Date(dateParts[0], dateParts[1]-1, dateParts[2]);
+                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            return `${months[date.getMonth()]} ${date.getDate()}`;
+                        }
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Discharge (m³/s)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2c3e50'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        color: '#2c3e50'
+                    },
+                    position: 'left',
+                },
+                y1: {
+                    title: {
+                        display: true,
+                        text: 'Energy (MWh)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        color: '#2980b9'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        color: '#2980b9'
+                    },
+                    position: 'right',
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            }
+        }
+    });
+}
+
+// Toggle between "View All Data" and "View Window Data" modes
+function toggleViewMode() {
+    const toggleCheckbox = document.getElementById('viewModeToggle');
+    
+    // For checkbox, checked = Window View (interactive mode), unchecked = All Data view
+    viewAllData = !toggleCheckbox.checked;
+    
+    // Update chart container cursor style
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.style.cursor = viewAllData ? 'default' : 'grab';
+    }
+    
+    // Update slider visibility
+    updateSliderVisibility();
+    
+    // Redraw chart with appropriate data
+    if (allChartPredictionData.length > 0) {
+        updateChartBasedOnViewMode();
+    }
+}
+
+// Update chart based on current view mode
+function updateChartBasedOnViewMode() {
+    // Instead of calling separate functions that might destroy and recreate the chart,
+    // we'll update the chart data directly based on the view mode
+    
+    if (!allChartPredictionData || allChartPredictionData.length === 0) {
+        return;
+    }
+    
+    let dataToShow;
+    if (viewAllData) {
+        // Show all data
+        dataToShow = allChartPredictionData;
+    } else {
+        // Show data window based on slider
+        const slider = document.getElementById('chartWindowSlider');
+        const startIdx = parseInt(slider.value);
+        const endIdx = Math.min(startIdx + chartWindowSize, allChartPredictionData.length);
+        dataToShow = allChartPredictionData.slice(startIdx, endIdx);
+    }
+    
+    // Update slider visibility
+    updateSliderVisibility();
+    
+    // Generate arrays of data for the chart
+    const dateLabels = dataToShow.map(d => d.date);
+    const dischargeValues = dataToShow.map(d => d.discharge);
+    const energyValues = dataToShow.map(d => d.energy);
+    
+    if (dischargeChart) {
+        // Update existing chart data without destroying it
+        dischargeChart.data.labels = dateLabels;
+        dischargeChart.data.datasets[0].data = dischargeValues;
+        dischargeChart.data.datasets[1].data = energyValues;
+        dischargeChart.update('none'); // Update immediately without animation
+    } else {
+        // If chart doesn't exist yet, create it via the standard function
+        createPredictionsChart({
+            predictions: dataToShow
+        });
+    }
+}
+
+// Update slider visibility based on view mode
+function updateSliderVisibility() {
+    const sliderContainer = document.getElementById('chartWindowSlider').parentElement;
+    
+    // When viewing all data, hide the slider
+    if (viewAllData) {
+        sliderContainer.style.display = 'none';
+    } else {
+        sliderContainer.style.display = 'block';
+    }
+}
+
+// Set up chart interaction functionality (dragging and zooming)
+function setupChartDragging() {
+    const chartContainer = document.querySelector('.chart-container');
+    
+    if (!chartContainer) return;
+    
+    // Mouse wheel event - zoom in and out
+    chartContainer.addEventListener('wheel', function(e) {
+        // Only enable zooming when in interactive mode
+        if (viewAllData) return;
+        
+        e.preventDefault(); // Prevent page scrolling
+        
+        // Determine zoom direction
+        const zoomIn = e.deltaY < 0;
+        
+        // Calculate current center position of visible data
+        const slider = document.getElementById('chartWindowSlider');
+        const currentStart = parseInt(slider.value);
+        const currentMiddle = currentStart + (chartWindowSize / 2);
+        
+        // Adjust window size
+        if (zoomIn) {
+            // Zoom in - decrease window size
+            chartWindowSize = Math.max(minChartWindowSize, chartWindowSize - 2);
+        } else {
+            // Zoom out - increase window size
+            chartWindowSize = Math.min(maxChartWindowSize, chartWindowSize + 2);
+        }
+        
+        // Recalculate slider position to maintain center point
+        const newStart = Math.round(currentMiddle - (chartWindowSize / 2));
+        const maxSliderValue = Math.max(0, allChartPredictionData.length - chartWindowSize);
+        slider.max = maxSliderValue;
+        slider.value = Math.max(0, Math.min(maxSliderValue, newStart));
+        
+        // Update chart with new window size using the improved method
+        // that doesn't destroy and recreate the chart
+        updateChartWithSlider();
+        
+        // Show zoom level indicator
+        showZoomNotification(zoomIn);
+    }, { passive: false });
+    
+    // Mouse down event - start tracking drag
+    chartContainer.addEventListener('mousedown', function(e) {
+        // Only enable dragging when in window view mode
+        if (viewAllData) return;
+        
+        isDragging = true;
+        dragStartX = e.clientX;
+        
+        // Get current slider value
+        const slider = document.getElementById('chartWindowSlider');
+        currentSliderValue = parseInt(slider.value);
+        
+        // Change cursor and add dragging class for visual feedback
+        chartContainer.classList.add('dragging');
+        
+        // Prevent text selection during drag
+        e.preventDefault();
+    });
+    
+    // Mouse move event - update chart position
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        
+        const slider = document.getElementById('chartWindowSlider');
+        const sliderMax = parseInt(slider.max);
+        const dragDistance = e.clientX - dragStartX;
+        
+        // Calculate how much to move the slider
+        // Negative distance (drag left) → move forward in time
+        // Positive distance (drag right) → move backward in time
+        const moveAmount = Math.round(-dragDistance / 10); // Adjust sensitivity
+        
+        // Calculate new slider value with boundaries
+        let newValue = currentSliderValue + moveAmount;
+        newValue = Math.max(0, Math.min(sliderMax, newValue));
+        
+        // Update slider and chart if value changed
+        if (newValue !== parseInt(slider.value)) {
+            slider.value = newValue;
+            updateChartWithSlider();
+        }
+    });
+    
+    // Mouse up event - stop tracking drag
+    document.addEventListener('mouseup', function() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        chartContainer.classList.remove('dragging');
+    });
+    
+    // Mouse leave event - stop tracking drag if cursor leaves the window
+    document.addEventListener('mouseleave', function() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        chartContainer.classList.remove('dragging');
+    });
+    
+    // Add touch support for mobile devices
+    chartContainer.addEventListener('touchstart', function(e) {
+        if (viewAllData) return;
+        
+        isDragging = true;
+        dragStartX = e.touches[0].clientX;
+        currentSliderValue = parseInt(document.getElementById('chartWindowSlider').value);
+        e.preventDefault();
+    });
+    
+    document.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        
+        const slider = document.getElementById('chartWindowSlider');
+        const sliderMax = parseInt(slider.max);
+        const dragDistance = e.touches[0].clientX - dragStartX;
+        
+        const moveAmount = Math.round(-dragDistance / 10);
+        let newValue = currentSliderValue + moveAmount;
+        newValue = Math.max(0, Math.min(sliderMax, newValue));
+        
+        if (newValue !== parseInt(slider.value)) {
+            slider.value = newValue;
+            updateChartWithSlider();
+        }
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('touchend', function() {
+        isDragging = false;
+    });
+    
+    // Show hint tooltip about drag functionality when in window mode
+    const toggleCheckbox = document.getElementById('viewModeToggle');
+    toggleCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            // Show tooltip when switching to window mode
+            const tooltip = document.createElement('div');
+            tooltip.className = 'drag-hint';
+            tooltip.innerHTML = 'Click and drag left/right to navigate through time<br>Use mouse wheel to zoom in/out';
+            tooltip.style.position = 'absolute';
+            tooltip.style.bottom = '40px';
+            tooltip.style.left = '50%';
+            tooltip.style.transform = 'translateX(-50%)';
+            tooltip.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '8px 16px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.fontSize = '14px';
+            tooltip.style.textAlign = 'center';
+            
+            chartContainer.appendChild(tooltip);
+            
+            // Remove tooltip after a delay
+            setTimeout(() => {
+                if (tooltip.parentNode) {
+                    tooltip.parentNode.removeChild(tooltip);
+                }
+            }, 5000);
+        }
+    });
+    
+    // Function to show zoom level notification
+    function showZoomNotification(zoomingIn) {
+        // Create notification element if it doesn't exist
+        let zoomNotification = chartContainer.querySelector('.zoom-notification');
+        if (!zoomNotification) {
+            zoomNotification = document.createElement('div');
+            zoomNotification.className = 'zoom-notification';
+            zoomNotification.style.position = 'absolute';
+            zoomNotification.style.top = '10px';
+            zoomNotification.style.right = '150px'; // Move it to the left to avoid overlapping with the toggle switch
+            zoomNotification.style.backgroundColor = 'rgba(0,0,0,0.6)';
+            zoomNotification.style.color = 'white';
+            zoomNotification.style.padding = '5px 10px';
+            zoomNotification.style.borderRadius = '4px';
+            zoomNotification.style.zIndex = '1000';
+            zoomNotification.style.fontSize = '12px';
+            zoomNotification.style.transition = 'opacity 0.3s';
+            chartContainer.appendChild(zoomNotification);
+        }
+        
+        // Calculate zoom percentage (inverse of window size)
+        const zoomPercentage = Math.round((1 - ((chartWindowSize - minChartWindowSize) / 
+                                          (maxChartWindowSize - minChartWindowSize))) * 100);
+        
+        // Update notification content
+        zoomNotification.innerHTML = `<strong>${zoomingIn ? '🔍+' : '🔍-'}</strong> Zoom: ${zoomPercentage}% (${chartWindowSize} days)`;
+        zoomNotification.style.opacity = '1';
+        
+        // Hide notification after delay
+        clearTimeout(zoomNotification.fadeTimeout);
+        zoomNotification.fadeTimeout = setTimeout(() => {
+            zoomNotification.style.opacity = '0';
+        }, 1500);
+    }
+}
+
+    } // Close the else statement in createPredictionsChart
+} // Close createPredictionsChart function
+
+// This function is defined earlier in the file
+
+// This function is defined earlier in the file
+
+// Start auto refresh of predictions
+function startAutoRefresh() {
+    stopAutoRefresh(); // Clear any existing timer
+    refreshInterval = setInterval(function() {
+        if (currentStation) {
+            loadPredictionData(currentStation.station_id);
+        }
+    }, REFRESH_INTERVAL);
+    
+    // Also set up the table refresh timer if not already running
+    if (!tableRefreshTimer && currentStation) {
+        tableRefreshTimer = setInterval(function() {
+            refreshObservations();
+        }, TABLE_REFRESH_INTERVAL);
+    }
+    
+    console.log("Auto-refresh started: Chart every " + (REFRESH_INTERVAL/1000) + "s, Table every " + (TABLE_REFRESH_INTERVAL/1000) + "s");
+}
+
+// Stop auto refresh
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+    if (tableRefreshTimer) {
+        clearInterval(tableRefreshTimer);
+        tableRefreshTimer = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', stopAutoRefresh);
+window.addEventListener('beforeunload', function() {
+    if (tableRefreshTimer) {
+        clearInterval(tableRefreshTimer);
+    }
+});

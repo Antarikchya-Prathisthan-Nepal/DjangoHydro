@@ -1,0 +1,202 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Favicon links for all browsers -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/APN-logo.png' %}">
+    <link rel="apple-touch-icon-precomposed" href="{% static 'images/APN-logo.png' %}">
+    <meta name="msapplication-TileImage" content="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    {% csrf_token %}
+    <script>
+      window.CSRF_TOKEN = '{{ csrf_token }}';
+      window.USER_AUTHENTICATED = {% if request.user.is_authenticated %}true{% else %}false{% endif %};
+    </script>
+    <title>Nepal Watershed Delineation Portal</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/delineation-mobile.css' %}" />
+</head>
+<body>
+    <div id="sidebar">
+        <button id="sidebar-toggle" title="Toggle sidebar">▼</button>
+        <h2>Nepal Watersheds</h2>
+        <p>🌐 Click on the map to delineate a watershed.</p>
+        <div class="option-group">
+            <b>Location:</b>
+            <div class="location-buttons">
+                <button class="btn" onclick="enterCoords()">Enter coordinates</button>
+                <button class="btn" onclick="getLocation()">Your current location</button>
+            </div>
+        </div>
+        <div class="option-group">
+            <b>📍 Map Location:</b>
+            <div id="pointer-info">
+                <div class="location-item">
+                    <span class="location-icon">🎯</span> <strong>Pointer (lat, lon):</strong> -
+                </div>
+                <div class="location-item">
+                    <span class="location-icon">🔍</span> <strong>Zoom level:</strong> -
+                </div>
+            </div>
+        </div>
+        
+        <!-- Elevation data will be displayed here by JavaScript -->
+        <div id="elevation-data-container" style="display:none;">
+            <div class="option-group">
+                <b>📊 Elevation Analysis:</b>
+                <div id="elevation-data">
+                    <!-- Dynamically populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="map"></div>
+    <div id="result"></div>
+
+    {% include 'users/_auth_modal.html' %}
+
+    <!-- Coordinate Entry Modal -->
+    <div id="coord-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="site-name">APN Hydro Portal Request For Coordinates</span>
+            </div>
+            <div class="modal-body">
+                <p>Enter a latitude and longitude pair in decimal degrees, separated by a space and/or comma. Example:</p>
+                <p class="example">28.26, 83.45</p>
+                <input type="text" id="coord-input" placeholder="Enter coordinates..." />
+            </div>
+            <div class="modal-footer">
+                <button id="coord-ok" class="modal-btn modal-btn-ok">OK</button>
+                <button id="coord-cancel" class="modal-btn modal-btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="{% static 'js/scripts.js' %}?v=2"></script>
+
+    <script>
+        // Mobile enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sidebar toggle functionality
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const map = document.getElementById('map');
+            
+            // Check if we're on a mobile device
+            const isMobile = window.innerWidth <= 768;
+            
+            // Function to detect if we're in a delineated state
+            function hasWatershedData() {
+                return !!document.querySelector('.watershed-summary');
+            }
+            
+            // Immediately ensure toggle button is visible on mobile
+            if (isMobile) {
+                sidebarToggle.style.display = 'flex';
+                sidebarToggle.style.visibility = 'visible';
+                sidebarToggle.style.opacity = '1';
+            }
+            
+            // Auto-collapse sidebar on mobile after 2 seconds if no watershed data
+            if (isMobile && !hasWatershedData()) {
+                setTimeout(function() {
+                    sidebar.classList.add('collapsed');
+                    sidebarToggle.innerHTML = '▲';
+                }, 2000);
+            }
+            
+            // Handle orientation changes and window resizing
+            window.addEventListener('orientationchange', handleViewportChange);
+            window.addEventListener('resize', handleViewportChange);
+            
+            function handleViewportChange() {
+                // Force redraw of map
+                if (window.map) {
+                    setTimeout(function() {
+                        window.map.invalidateSize();
+                    }, 200);
+                }
+                
+                // Update sidebar toggle button visibility based on screen width
+                const isMobileView = window.innerWidth <= 768;
+                if (!isMobileView) {
+                    sidebarToggle.style.display = 'none';
+                } else {
+                    sidebarToggle.style.display = 'flex';
+                    // Make sure toggle button is visible in mobile view regardless of CSS
+                    sidebarToggle.style.visibility = 'visible';
+                    sidebarToggle.style.opacity = '1';
+                }
+            }
+            
+            // Toggle sidebar when button is clicked
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+                
+                // Update toggle button icon
+                if (sidebar.classList.contains('collapsed')) {
+                    sidebarToggle.innerHTML = '▲';
+                } else {
+                    sidebarToggle.innerHTML = '▼';
+                    // Scroll to top when expanding
+                    sidebar.scrollTop = 0;
+                }
+                
+                // Add class to indicate that sidebar was manually toggled
+                sidebar.classList.add('manually-toggled');
+                
+                // Force map to refresh its size after sidebar toggle
+                if (window.map) {
+                    setTimeout(function() {
+                        window.map.invalidateSize();
+                    }, 300);
+                }
+            });
+            
+            // Expand sidebar automatically when a watershed is delineated
+            // This is a simple observer pattern to watch for changes in the result area
+            const resultObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' && sidebar.classList.contains('collapsed')) {
+                        // If watershed data is displayed, expand sidebar
+                        if (document.querySelector('.watershed-summary')) {
+                            sidebar.classList.remove('collapsed');
+                            sidebarToggle.innerHTML = '▼';
+                        }
+                    }
+                });
+            });
+            
+            // Start observing the pointer-info element for changes
+            resultObserver.observe(document.getElementById('pointer-info'), { 
+                childList: true,
+                subtree: true
+            });
+            
+            // Add touch-friendly styles for leaflet controls
+            const style = document.createElement('style');
+            style.textContent = `
+                @media (max-width: 768px) {
+                    .leaflet-touch .leaflet-control-layers, 
+                    .leaflet-touch .leaflet-bar {
+                        border: 2px solid rgba(0,0,0,0.2);
+                    }
+                    .leaflet-touch .leaflet-control-zoom-in, 
+                    .leaflet-touch .leaflet-control-zoom-out {
+                        font-size: 22px;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html>

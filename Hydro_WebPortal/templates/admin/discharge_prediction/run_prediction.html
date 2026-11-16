@@ -1,0 +1,212 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:discharge_prediction_dischargestation_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module aligned">
+        <h2>Run Discharge Prediction for {{ station.name }}</h2>
+        
+        <div class="form-row">
+            <div class="field-box">
+                <h3>Station Information</h3>
+                <ul>
+                    <li><strong>Station ID:</strong> {{ station.station_id }}</li>
+                    <li><strong>Location:</strong> {{ station.location.y|floatformat:4 }}°N, {{ station.location.x|floatformat:4 }}°E</li>
+                    <li><strong>River:</strong> {{ station.river_name }}</li>
+                    <li><strong>Model Status:</strong> 
+                        {% if station.is_model_ready %}
+                            <span style="color: green;">✅ Ready</span>
+                        {% else %}
+                            <span style="color: red;">❌ Not Configured</span>
+                        {% endif %}
+                    </li>
+                    <li><strong>Model File:</strong> {{ station.model_file_path|default:"Not set" }}</li>
+                    <li><strong>Scaler File:</strong> {{ station.scaler_file_path|default:"Not set" }}</li>
+                    <li><strong>ERA5 Data Status:</strong> 
+                        <span id="era5-status">Loading...</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        {% if station.is_model_ready %}
+        <form method="post" class="aligned">
+            {% csrf_token %}
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="prediction_date">Prediction Date:</label>
+                    <input type="date" name="prediction_date" id="prediction_date" value="{{ default_prediction_date }}" required>
+                    <p class="help">Date to predict discharge for (typically 45+ days in the future)</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box" id="sequence-info">
+                    <h3>Required Data Period</h3>
+                    <p>For the selected prediction date, the model will need:</p>
+                    <ul id="sequence-details">
+                        <li>90-day ERA5 sequence will be calculated automatically</li>
+                        <li>45-day lead time will be applied</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <h3>Prediction Process</h3>
+                    <div class="help">
+                        <ol>
+                            <li><strong>Data Validation:</strong> Check ERA5 data completeness for required sequence</li>
+                            <li><strong>Preprocessing:</strong> Extract and normalize 90-day feature sequences</li>
+                            <li><strong>Model Inference:</strong> Run PyTorch model prediction</li>
+                            <li><strong>Post-processing:</strong> Apply inverse scaling and validation</li>
+                            <li><strong>Storage:</strong> Save prediction results to database</li>
+                        </ol>
+                        <p><strong>Processing Time:</strong> 1-3 minutes</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="submit-row">
+                <input type="submit" value="Run Prediction" class="default" id="submit-btn" />
+                <a href="{% url 'admin:discharge_prediction_dischargestation_changelist' %}" class="button cancel-link">Cancel</a>
+            </div>
+        </form>
+        
+        {% else %}
+        <div class="form-row">
+            <div class="field-box" style="background-color: #ffeaa7; border-color: #fdcb6e;">
+                <h3>⚠️ Model Not Configured</h3>
+                <p>This station does not have a configured PyTorch model. To run predictions:</p>
+                <ol>
+                    <li>Upload your trained model file (.pt) to <code>models/pytorch/</code></li>
+                    <li>Upload your scaler file (.pkl) to <code>models/scalers/</code></li>
+                    <li>Update the station's model configuration in the admin</li>
+                    <li>Or use the batch action "Configure PyTorch models" from the station list</li>
+                </ol>
+                <p><a href="{% url 'admin:discharge_prediction_dischargestation_change' station.pk %}" class="button">Edit Station Configuration</a></p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Load ERA5 data status
+fetch("{% url 'admin:discharge_station_era5_status' station.pk %}")
+    .then(response => response.json())
+    .then(data => {
+        const statusElement = document.getElementById('era5-status');
+        if (data.has_data) {
+            statusElement.innerHTML = `
+                <span style="color: green;">${data.total_records} records available</span><br>
+                <small>Range: ${data.earliest_date} to ${data.latest_date}</small><br>
+                <small>Complete: ${data.completion_rate.toFixed(1)}%</small>
+            `;
+        } else {
+            statusElement.innerHTML = '<span style="color: red;">No ERA5 data available</span>';
+        }
+    })
+    .catch(error => {
+        document.getElementById('era5-status').innerHTML = '<span style="color: red;">Error loading status</span>';
+    });
+
+// Update sequence info when prediction date changes
+function updateSequenceInfo() {
+    const predictionDate = new Date(document.getElementById('prediction_date').value);
+    if (isNaN(predictionDate)) return;
+    
+    // Calculate sequence dates (45-day lead time, 90-day sequence)
+    const sequenceEnd = new Date(predictionDate);
+    sequenceEnd.setDate(sequenceEnd.getDate() - 45);
+    
+    const sequenceStart = new Date(sequenceEnd);
+    sequenceStart.setDate(sequenceStart.getDate() - 89); // 89 + 1 = 90 days
+    
+    const detailsElement = document.getElementById('sequence-details');
+    detailsElement.innerHTML = `
+        <li><strong>Sequence Period:</strong> ${sequenceStart.toISOString().split('T')[0]} to ${sequenceEnd.toISOString().split('T')[0]}</li>
+        <li><strong>Sequence Length:</strong> 90 days</li>
+        <li><strong>Lead Time:</strong> 45 days</li>
+        <li><strong>Features:</strong> Temperature, Precipitation, Wind U/V, Humidity</li>
+    `;
+    
+    // Check if we have data for this period
+    fetch("{% url 'admin:discharge_station_era5_status' station.pk %}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.has_data) {
+                const earliestDate = new Date(data.earliest_date);
+                const latestDate = new Date(data.latest_date);
+                
+                const hasSequenceData = earliestDate <= sequenceStart && latestDate >= sequenceEnd;
+                
+                if (hasSequenceData) {
+                    detailsElement.innerHTML += '<li style="color: green;"><strong>✅ ERA5 data available for this sequence</strong></li>';
+                    document.getElementById('submit-btn').disabled = false;
+                } else {
+                    detailsElement.innerHTML += `
+                        <li style="color: red;"><strong>❌ Insufficient ERA5 data</strong></li>
+                        <li><small>Available: ${data.earliest_date} to ${data.latest_date}</small></li>
+                        <li><small>Required: ${sequenceStart.toISOString().split('T')[0]} to ${sequenceEnd.toISOString().split('T')[0]}</small></li>
+                    `;
+                    document.getElementById('submit-btn').disabled = true;
+                }
+            } else {
+                detailsElement.innerHTML += '<li style="color: red;"><strong>❌ No ERA5 data available</strong></li>';
+                document.getElementById('submit-btn').disabled = true;
+            }
+        });
+}
+
+// Update sequence info when page loads and when date changes
+document.addEventListener('DOMContentLoaded', updateSequenceInfo);
+document.getElementById('prediction_date').addEventListener('change', updateSequenceInfo);
+</script>
+
+<style>
+.help ol {
+    margin-left: 20px;
+}
+.help ol li {
+    margin-bottom: 5px;
+}
+.field-box {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddddddff;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+#era5-status {
+    font-family: monospace;
+    background-color: #fff;
+    padding: 5px;
+    border-radius: 3px;
+    display: inline-block;
+}
+#sequence-details {
+    font-family: monospace;
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 3px;
+    list-style-type: none;
+}
+#sequence-details li {
+    margin-bottom: 5px;
+    padding: 2px 0;
+}
+</style>
+{% endblock %}

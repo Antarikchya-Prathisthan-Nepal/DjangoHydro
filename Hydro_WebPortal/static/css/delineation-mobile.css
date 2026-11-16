@@ -1,0 +1,212 @@
+/* Mobile enhancements for delineation page */
+
+/* Hide the sidebar toggle button by default (on desktop) */
+#sidebar-toggle {
+    display: none; /* Hidden on desktop by default */
+    opacity: 0; /* Start invisible */
+    transition: opacity 0.3s ease; /* Smooth appearance */
+}
+
+/* Mobile-first layout adjustments */
+@media (max-width: 768px) {
+    /* Main layout */
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    /* Sidebar modifications */
+    #sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 40vh; /* Smaller height to leave more room for map */
+        float: none;
+        overflow-y: auto;
+        transition: all 0.3s ease;
+        position: relative;
+        padding: 15px;
+        z-index: 100;
+    }
+    
+    /* Collapsed sidebar state */
+    #sidebar.collapsed {
+        max-height: 60px;
+        overflow: hidden;
+    }
+    
+    /* Add toggle button for sidebar */
+    #sidebar-toggle {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex !important; /* Override the desktop rule with higher specificity */
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        z-index: 110;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Map modifications */
+    #map {
+        margin-left: 0 !important;
+        height: calc(100vh - 120px); /* Subtract approx height of collapsed sidebar + result */
+        width: 100%;
+        position: relative;
+        z-index: 50;
+    }
+    
+    /* Adjust map height when sidebar is expanded */
+    #sidebar:not(.collapsed) + #map {
+        height: calc(100vh - 40vh - 30px); /* Adjust for expanded sidebar */
+    }
+    
+    /* Result area */
+    #result {
+        margin-left: 0 !important;
+        padding: 5px 10px;
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.8);
+        position: relative;
+        z-index: 60;
+        height: auto; /* Allow to collapse when empty */
+        line-height: 30px;
+        min-height: 0; /* Don't take up space when empty */
+        display: none; /* Hide when empty */
+    }
+    
+    #result:not(:empty) {
+        display: block; /* Only show when it contains content */
+        height: 30px;
+    }
+    
+    /* Heading adjustments */
+    h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+        padding-right: 40px; /* Make room for toggle button */
+    }
+    
+    /* Compact option groups */
+    .option-group {
+        margin-bottom: 12px;
+        padding: 12px;
+    }
+    
+    /* Location buttons */
+    .location-buttons .btn {
+        padding: 10px;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+    
+    /* Make location info more compact */
+    .location-item {
+        font-size: 12px;
+        margin: 2px 0;
+    }
+    
+    /* Elevation table adjustments */
+    .elevation-table {
+        font-size: 12px;
+        width: 100%;
+        table-layout: fixed;
+    }
+    
+    .elevation-table th, .elevation-table td {
+        padding: 6px 4px;
+        text-align: center;
+    }
+    
+    /* Column widths for mobile */
+    .elevation-table th:first-child, .elevation-table td:first-child {
+        width: 40%;
+        text-align: left;
+    }
+    
+    .elevation-table th:nth-child(2), .elevation-table td:nth-child(2),
+    .elevation-table th:nth-child(3), .elevation-table td:nth-child(3) {
+        width: 30%;
+    }
+    
+    /* Download button adjustments */
+    .download-btn {
+        padding: 12px 16px;
+        font-size: 14px;
+        margin-top: 10px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Modal adjustments */
+    .modal-content {
+        width: 90%;
+        margin: 50% auto 0;
+    }
+    
+    /* Improve touch targets */
+    .btn, .location-buttons .btn, .download-btn {
+        min-height: 44px;
+    }
+    
+    /* Watershed summary more compact */
+    .watershed-summary {
+        font-size: 13px;
+        flex-direction: column !important;
+    }
+    
+    /* Make watershed info more compact and clear */
+    .watershed-summary .location-icon {
+        display: none; /* Hide emoji on mobile to save space */
+    }
+    
+    /* After delineation, show the sidebar */
+    #sidebar.has-watershed {
+        max-height: 60vh !important;
+    }
+}
+
+/* Hide scrollbar but allow scrolling */
+@media (max-width: 768px) {
+    #sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+    
+    #sidebar::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+    }
+    
+    #sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+    }
+    
+    /* Improve tap targets for mobile */
+    .leaflet-control-zoom a {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+    }
+}
+
+/* Styles for the elevation data after delineation */
+@media (max-width: 768px) {
+    #elevation-data-container {
+        margin-top: 10px;
+    }
+    
+    .elevation-stats h4 {
+        font-size: 14px;
+    }
+}

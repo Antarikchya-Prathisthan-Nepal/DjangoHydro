@@ -1,0 +1,102 @@
+/* Logout confirmation dialog styling */
+.logout-dialog {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 260px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 0;
+    display: none;
+    z-index: 1000;
+    overflow: hidden;
+    margin-top: 8px;
+    text-align: center;
+}
+
+.logout-dialog.show {
+    display: block;
+}
+
+.logout-dialog-content {
+    padding: 25px 20px;
+}
+
+.logout-icon {
+    width: 60px;
+    height: 60px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+}
+
+.logout-icon i {
+    font-size: 22px;
+    color: #444;
+}
+
+.logout-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.logout-message {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.logout-actions {
+    display: flex;
+    justify-content: space-between;
+}
+
+.logout-cancel-btn {
+    border: 1px solid #ddd;
+    color: #666;
+    background-color: transparent;
+    padding: 8px 20px;
+    font-weight: 500;
+    border-radius: 6px;
+    flex: 1;
+    margin-right: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-cancel-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.logout-confirm-btn {
+    background-color: #2563eb;
+    border: none;
+    color: white;
+    padding: 8px 20px;
+    font-weight: 500;
+    border-radius: 6px;
+    flex: 1;
+    margin-left: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-confirm-btn:hover {
+    background-color: #1d4ed8;
+}
+
+/* User control styling updates */
+.user-logout-btn {
+    position: relative;
+}
+
+/* Enhanced version for dashboard styles */
+.header-controls-wrapper .user-info .dropdown {
+    position: relative;
+}

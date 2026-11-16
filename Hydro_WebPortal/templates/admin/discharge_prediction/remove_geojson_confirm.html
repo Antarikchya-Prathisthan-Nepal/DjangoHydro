@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Remove Catchment GeoJSON — {{ station.name }}{% endblock %}
+
+{% block content %}
+<p class="breadcrumbs" style="margin-bottom:16px;">
+  <a href="{% url 'admin:discharge_prediction_dischargestation_changelist' %}">Discharge stations</a>
+  &rsaquo;
+  <a href="{% url 'admin:discharge_prediction_dischargestation_change' station.pk %}">{{ station.name }}</a>
+  &rsaquo; Remove catchment GeoJSON
+</p>
+<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:4px; padding:16px 20px; margin-bottom:24px; color:#664d03;">
+  <strong style="color:#664d03;">&#9888; Warning:</strong> You are about to permanently remove the catchment polygon for
+  <strong style="color:#664d03;">{{ station.name }}</strong> (Station ID: {{ station.station_id }}).
+  <br><br>
+  This will delete the stored geometry from the database. ERA5 downloads performed after this
+  action will fall back to bounding-box averaging until a new GeoJSON is uploaded.
+  <br><br>
+  This action <strong style="color:#664d03;">cannot be undone</strong> unless you re-upload the original file.
+</div>
+
+{% if station.catchment_polygon %}
+{% with info=station.get_catchment_info %}
+<table style="border-collapse:collapse; margin-bottom:24px;">
+  <caption style="text-align:left; font-weight:bold; margin-bottom:8px;">Current polygon details</caption>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Polygons</th>
+    <td>{{ info.num_polygons }}</td>
+  </tr>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Bounds N</th>
+    <td>{{ info.bounds.north|floatformat:4 }}°</td>
+  </tr>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Bounds S</th>
+    <td>{{ info.bounds.south|floatformat:4 }}°</td>
+  </tr>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Bounds E</th>
+    <td>{{ info.bounds.east|floatformat:4 }}°</td>
+  </tr>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Bounds W</th>
+    <td>{{ info.bounds.west|floatformat:4 }}°</td>
+  </tr>
+  <tr>
+    <th style="text-align:left; padding:4px 16px 4px 0;">Centroid</th>
+    <td>{{ info.centroid.latitude|floatformat:4 }}°N, {{ info.centroid.longitude|floatformat:4 }}°E</td>
+  </tr>
+</table>
+{% endwith %}
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="confirmed" value="1">
+  <a href="{% url 'admin:discharge_prediction_dischargestation_change' station.pk %}"
+     class="button" style="margin-right:12px;">
+    Cancel — keep the file
+  </a>
+  <button type="submit"
+          class="button"
+          style="background-color:#ba2121; color:white; border:none; cursor:pointer; padding:6px 12px;">
+    Yes, remove the catchment GeoJSON
+  </button>
+</form>
+{% endblock %}

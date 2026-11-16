@@ -1,0 +1,48 @@
+/* Date controls styling */
+.date-period-controls {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.date-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-period-controls label {
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.date-period-controls input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 130px;
+}
+
+.view-button {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.3s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.view-button:hover {
+    background: #357abd;
+}

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discharge Prediction Dashboard</title>
+    
+    {% load static %}
+    <!-- Favicon links for all browsers -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/APN-logo.png' %}">
+    <link rel="apple-touch-icon-precomposed" href="{% static 'images/APN-logo.png' %}">
+    <meta name="msapplication-TileImage" content="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Leaflet for map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .station-selector {
+            background: white;
+            border-radius: 8px;
+            padding: 10px 15px;
+            min-width: 250px;
+        }
+
+        .station-selector select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Main container */
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Left column */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Chart container */
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            border: 1px solid #e1e8ed;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f3f7;
+        }
+
+        .chart-title {
+            color: #d32f2f;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Observations section */
+        .observations-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            border: 1px solid #e1e8ed;
+        }
+
+        .observations-header {
+            color: #d32f2f;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f3f7;
+        }
+
+        .date-period-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .date-period-controls input,
+        .date-period-controls select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .view-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .view-button:hover {
+            background: #357abd;
+        }
+
+        /* Water level table */
+        .water-level-section {
+            margin-top: 20px;
+        }
+
+        .water-level-header {
+            background: #4a90e2;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .water-level-table {
+            border: 1px solid #ddd;
+            border-radius: 0 0 8px 8px;
+            overflow: hidden;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .water-level-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .water-level-table th {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+        }
+
+        .water-level-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .water-level-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Right column */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Map container */
+        .map-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            border: 1px solid #e1e8ed;
+            height: 400px;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        /* Station details */
+        .station-details {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            border: 1px solid #e1e8ed;
+        }
+
+        .station-details h3 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .loading::before {
+            content: "⏳";
+            margin-right: 10px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .date-period-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>DISCHARGE PREDICTION TELEMETRY</h1>
+        <div class="station-selector">
+            <select id="stationSelect" onchange="switchStation()">
+                <option value="">Select Station...</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Left column -->
+        <div class="left-column">
+            <!-- Chart section -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title" id="stationTitle">Station Discharge Telemetry</div>
+                    <div style="font-size: 14px; color: #666;" id="chartSubtitle">45-day prediction horizon</div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="dischargeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Observations section -->
+            <div class="observations-section">
+                <div class="observations-header">OBSERVATIONS</div>
+                
+                <div class="date-period-controls">
+                    <label for="observationDate">Date:</label>
+                    <input type="date" id="observationDate" />
+                    
+                    <label for="periodSelect">Period:</label>
+                    <select id="periodSelect">
+                        <option value="point">Point</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    
+                    <button class="view-button" onclick="updateObservations()">VIEW</button>
+                </div>
+
+                <div class="water-level-section">
+                    <div class="water-level-header">Discharge Data</div>
+                    <div class="water-level-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Value (m³/s)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="observationsTableBody">
+                                <tr>
+                                    <td colspan="2" class="loading">Loading observations...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="right-column">
+            <!-- Map section -->
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+
+            <!-- Station details -->
+            <div class="station-details" id="stationDetailsPanel">
+                <h3>Station Information</h3>
+                <div id="stationDetailsContent">
+                    <div class="loading">Select a station to view details</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let map = null;
+        let currentStation = null;
+        let dischargeChart = null;
+        let stationMarker = null;
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMap();
+            loadStations();
+            setDefaultDate();
+        });
+
+        // Initialize Leaflet map
+        function initializeMap() {
+            map = L.map('map').setView([28.1667, 84.25], 7); // Nepal center
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            }).addTo(map);
+        }
+
+        // Set default date to today
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('observationDate').value = today;
+        }
+
+        // Load stations into dropdown
+        async function loadStations() {
+            try {
+                const response = await fetch('/discharge-prediction/api/stations/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    populateStationDropdown(data.stations);
+                    
+                    // Auto-select first station if available
+                    if (data.stations.length > 0) {
+                        document.getElementById('stationSelect').value = data.stations[0].station_id;
+                        switchStation();
+                    }
+                } else {
+                    console.error('Error loading stations:', data.error);
+                }
+            } catch (error) {
+                console.error('Network error loading stations:', error);
+            }
+        }
+
+        // Populate station dropdown
+        function populateStationDropdown(stations) {
+            const select = document.getElementById('stationSelect');
+            select.innerHTML = '<option value="">Select Station...</option>';
+            
+            stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station.station_id;
+                option.textContent = `${station.name} (${station.river_name})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Switch station when dropdown changes
+        async function switchStation() {
+            const stationId = document.getElementById('stationSelect').value;
+            if (!stationId) return;
+
+            try {
+                // Load station details
+                const response = await fetch(`/discharge-prediction/api/stations/${stationId}/`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentStation = data.station;
+                    updateStationDisplay(data.station);
+                    updateMapLocation(data.station);
+                    loadDischargeData(stationId);
+                    updateObservations();
+                }
+            } catch (error) {
+                console.error('Error switching station:', error);
+            }
+        }
+
+        // Update station display
+        function updateStationDisplay(station) {
+            document.getElementById('stationTitle').textContent = 
+                `${station.name.toUpperCase()} TELEMETRY`;
+            
+            const detailsContent = document.getElementById('stationDetailsContent');
+            detailsContent.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">Station Index:</span>
+                    <span class="detail-value">${station.station_id}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Latitude:</span>
+                    <span class="detail-value">${station.coordinates && station.coordinates.length >= 2 ? station.coordinates[0].toFixed(4) : 'N/A'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Longitude:</span>
+                    <span class="detail-value">${station.coordinates && station.coordinates.length >= 2 ? station.coordinates[1].toFixed(4) : 'N/A'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Elevation:</span>
+                    <span class="detail-value">${station.elevation || 'N/A'} m</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">River:</span>
+                    <span class="detail-value">${station.river_name || 'N/A'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">District:</span>
+                    <span class="detail-value">${station.country || 'N/A'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Description:</span>
+                    <span class="detail-value">${station.name} Telemetry</span>
+                </div>
+            `;
+        }
+
+        // Update map location
+        function updateMapLocation(station) {
+            if (!station.coordinates || !Array.isArray(station.coordinates) || station.coordinates.length < 2) return;
+
+            const lat = station.coordinates[0];
+            const lng = station.coordinates[1];
+
+            // Validate coordinates
+            if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
+
+            // Remove existing marker
+            if (stationMarker) {
+                map.removeLayer(stationMarker);
+            }
+
+            // Add new marker
+            stationMarker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(`<b>${station.name}</b><br>${station.river_name}`)
+                .openPopup();
+
+            // Center map on station
+            map.setView([lat, lng], 10);
+        }
+
+        // Load discharge data and create chart
+        async function loadDischargeData(stationId) {
+            try {
+                const response = await fetch(`/discharge-prediction/api/stations/${stationId}/telemetry/`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    createDischargeChart(data.telemetry_data);
+                } else {
+                    console.error('Error loading telemetry data:', data.error);
+                    // Fallback to sample data
+                    const sampleData = generateSampleDischargeData();
+                    createDischargeChart(sampleData);
+                }
+            } catch (error) {
+                console.error('Error loading discharge data:', error);
+                // Fallback to sample data
+                const sampleData = generateSampleDischargeData();
+                createDischargeChart(sampleData);
+            }
+        }
+
+        // Generate sample discharge data (fallback)
+        function generateSampleDischargeData() {
+            const historical = [];
+            const predictions = [];
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 45); // 45 days ago
+
+            for (let i = 0; i < 45; i++) { // Historical data
+                const date = new Date(startDate);
+                date.setDate(date.getDate() + i);
+                
+                const baseValue = 0.84 + Math.sin(i * 0.1) * 0.02 + Math.random() * 0.04 - 0.02;
+                
+                historical.push({
+                    date: date.toISOString().split('T')[0],
+                    discharge: Math.max(0.8, Math.min(0.88, baseValue)),
+                    is_prediction: false
+                });
+            }
+            
+            for (let i = 0; i < 45; i++) { // Prediction data
+                const date = new Date();
+                date.setDate(date.getDate() + i);
+                
+                const baseValue = 0.84 + Math.sin((i + 45) * 0.1) * 0.02 + Math.random() * 0.04 - 0.02;
+                
+                predictions.push({
+                    date: date.toISOString().split('T')[0],
+                    discharge: Math.max(0.8, Math.min(0.88, baseValue)),
+                    is_prediction: true
+                });
+            }
+            
+            return { historical, predictions };
+        }
+
+        // Create discharge chart
+        function createDischargeChart(telemetryData) {
+            const ctx = document.getElementById('dischargeChart').getContext('2d');
+            
+            if (dischargeChart) {
+                dischargeChart.destroy();
+            }
+
+            const historicalData = telemetryData.historical || [];
+            const predictionData = telemetryData.predictions || [];
+
+            dischargeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Historical',
+                            data: historicalData.map(d => ({x: d.date, y: d.discharge})),
+                            borderColor: '#4a90e2',
+                            backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            fill: false
+                        },
+                        {
+                            label: 'Prediction',
+                            data: predictionData.map(d => ({x: d.date, y: d.discharge})),
+                            borderColor: '#ff6b6b',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Discharge (m³/s)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Update observations table
+        async function updateObservations() {
+            if (!currentStation) return;
+
+            const tbody = document.getElementById('observationsTableBody');
+            tbody.innerHTML = '<tr><td colspan="2" class="loading">Loading observations...</td></tr>';
+
+            try {
+                const observationDate = document.getElementById('observationDate').value;
+                const period = document.getElementById('periodSelect').value;
+                
+                const response = await fetch(`/discharge-prediction/api/stations/${currentStation.station_id}/observations/?date=${observationDate}&period=${period}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayObservations(data.observations);
+                } else {
+                    console.error('Error loading observations:', data.error);
+                    // Fallback to sample data
+                    const observations = generateSampleObservations();
+                    displayObservations(observations);
+                }
+            } catch (error) {
+                console.error('Error loading observations:', error);
+                // Fallback to sample data
+                const observations = generateSampleObservations();
+                displayObservations(observations);
+            }
+        }
+
+        // Generate sample observations (replace with real API call)
+        function generateSampleObservations() {
+            const observations = [];
+            const selectedDate = new Date(document.getElementById('observationDate').value);
+            
+            // Generate hourly data for the selected date
+            for (let hour = 5; hour < 20; hour++) {
+                const time = `${hour.toString().padStart(2, '0')}:${(Math.floor(Math.random() * 6) * 10).toString().padStart(2, '0')}`;
+                const value = (0.84 + Math.random() * 0.04 - 0.02).toFixed(2);
+                
+                observations.push({
+                    datetime: `Wed, Aug 13, 2025, ${time}`,
+                    value: value
+                });
+            }
+            
+            return observations;
+        }
+
+        // Display observations in table
+        function displayObservations(observations) {
+            const tbody = document.getElementById('observationsTableBody');
+            
+            if (observations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #666;">No data available for selected date</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = observations.map(obs => `
+                <tr>
+                    <td>${obs.datetime}</td>
+                    <td>${obs.value}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+/* 
+ * Table Adjustments CSS
+ * This file contains adjustments to the prediction table to display all 14 rows without vacant space
+ */
+
+/* Adjust the prediction column to fit content better */
+.prediction-column {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    /* border-left: 2px solid #ff6b35; */
+    padding: 1.5rem;
+    width: 100%; /* Use percentage instead of fixed width */
+    max-width: 100%;
+    height: auto !important;
+    min-height: auto !important;
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Glass panel should fit its content */
+.prediction-column .glass-panel {
+    height: auto !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: auto !important;
+}
+
+/* Observations section should not have excessive height */
+.prediction-column .observations-section {
+    min-height: auto !important;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Adjust water level section to fit content */
+.water-level-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: auto !important;
+    margin-bottom: 0;
+}
+
+/* Water level table should display all rows without scrolling by default */
+.water-level-table {
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: 600px !important; /* Set a consistent minimum height */
+    max-height: none !important;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    display: block;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden; /* Hide horizontal overflow by default */
+}
+
+/* Add scrolling behavior when table has many rows (more than 20) */
+.water-level-table.scrollable-table {
+    height: 600px !important; /* Fixed height for scrollable tables */
+    max-height: 600px !important;
+    overflow-y: auto !important;
+}
+
+/* Table styling for displaying all rows */
+.water-level-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Override previous display settings */
+.water-level-table thead,
+.water-level-table tbody,
+.water-level-table tr {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
+/* Fixed header for scrollable tables */
+.water-level-table.scrollable-table thead {
+    display: table !important;
+    width: calc(100% - 17px) !important; /* Account for scrollbar width */
+    table-layout: fixed !important;
+    /* Use CSS variables for more flexibility across browsers */
+    width: calc(100% - var(--scrollbar-width, 17px)) !important;
+}
+
+/* Row styling for scrollable tables */
+.water-level-table.scrollable-table tbody tr {
+    display: table !important;
+    width: 100% !important;
+}
+
+/* Default behavior for table body */
+.water-level-table tbody {
+    display: table-row-group !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: 550px !important; /* Set a consistent minimum height */
+    max-height: none !important;
+}
+
+/* Scrolling behavior for table body when scrollable */
+.water-level-table.scrollable-table tbody {
+    display: block !important;
+    overflow-y: auto !important;
+    max-height: 550px !important; /* Allow space for header */
+}
+
+/* Table row styling */
+.water-level-table td {
+    padding: 8px 15px; /* Slightly reduced padding to fit more rows */
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+    vertical-align: middle;
+    height: 28px; /* Slightly reduced height for each table row */
+    line-height: 1.3;
+}
+
+/* When very few rows are present, make them fill the space better */
+.water-level-table:not(.scrollable-table) tbody tr {
+    height: 29px; /* Slightly taller rows for few data points */
+}
+
+/* Style for spacer rows to maintain consistent table height */
+.water-level-table tbody tr.spacer-row {
+    height: 29px;
+    border: none;
+}
+
+.water-level-table tbody tr.spacer-row td {
+    border-bottom: none;
+    color: transparent;
+}
+
+/* Last row should not have a bottom border */
+.water-level-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table header styling */
+.water-level-table th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Hover effect on table rows */
+.water-level-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 1200px) {
+    .water-level-table {
+        min-height: 500px !important; /* Slightly reduced height for medium screens */
+    }
+    
+    .water-level-table.scrollable-table {
+        height: 500px !important;
+        max-height: 500px !important;
+    }
+    
+    .water-level-table.scrollable-table tbody {
+        max-height: 450px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Tablet and mobile adjustments */
+    .prediction-column {
+        min-width: auto; /* Remove fixed width constraint */
+        width: 100%;
+        padding: 1rem; /* Reduce padding on mobile */
+    }
+    
+    .water-level-table {
+        min-height: 400px !important; /* Smaller height for mobile */
+        overflow-x: auto; /* Enable horizontal scrolling if needed */
+    }
+    
+    .water-level-table.scrollable-table {
+        height: 400px !important;
+        max-height: 400px !important;
+    }
+    
+    .water-level-table.scrollable-table tbody {
+        max-height: 350px !important;
+    }
+    
+    .water-level-table td,
+    .water-level-table th {
+        padding: 8px 10px; /* Smaller padding for table cells */
+    }
+}
+
+@media (max-width: 480px) {
+    /* Small mobile screens */
+    .prediction-column {
+        padding: 0.8rem; /* Even smaller padding on small screens */
+    }
+    
+    .water-level-section {
+        margin-top: 10px;
+    }
+    
+    .water-level-header {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .water-level-table {
+        min-height: 350px !important;
+        overflow-x: auto; /* Enable horizontal scrolling */
+    }
+    
+    .water-level-table.scrollable-table {
+        height: 350px !important;
+        max-height: 350px !important;
+    }
+    
+    .water-level-table.scrollable-table tbody {
+        max-height: 300px !important;
+    }
+    
+    .water-level-table table {
+        width: 100%;
+        min-width: 400px; /* Ensure minimum width for readability */
+    }
+    
+    .water-level-table td,
+    .water-level-table th {
+        padding: 6px 8px; /* Further reduce padding */
+        font-size: 0.9rem; /* Slightly smaller font */
+    }
+    
+    /* Improved date controls for small screens */
+    .date-period-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .date-period-controls > div {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .date-period-controls input,
+    .date-period-controls select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        font-size: 0.9rem;
+    }
+    
+    .view-button {
+        width: 100%;
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+}

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Full Access | Hydro WebPortal</title>
+    {% load static %}
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
+
+        .bg-page { position: fixed; inset: -20px; filter: blur(7px); transform: scale(1.04); pointer-events: none; user-select: none; z-index: 0; }
+        .bg-navbar { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .bg-navbar-brand { color: #fff; font-size: 1.4rem; font-weight: 600; }
+        .bg-navbar-links { display: flex; gap: 28px; }
+        .bg-navbar-links span { color: #fff; font-size: 0.95rem; opacity: 0.85; }
+        .bg-navbar-btn { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; }
+        .bg-hero { background: url('{% static "images/hero-dam.jpg" %}') no-repeat center center / cover; min-height: 400px; display: flex; align-items: center; justify-content: flex-end; padding: 60px 80px; position: relative; }
+        .bg-hero::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.25); }
+        .bg-hero-text { position: relative; z-index: 1; color: #fff; max-width: 400px; }
+        .bg-hero-text h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .bg-hero-text p  { font-size: 1.1rem; opacity: 0.9; }
+        .bg-wave svg { display: block; width: 100%; height: 50px; fill: #f8f9fa; }
+        .bg-features { background: #f8f9fa; padding: 40px 60px; display: flex; justify-content: center; gap: 24px; }
+        .bg-card { background: #fff; border-radius: 16px; padding: 28px 24px; width: 260px; text-align: center; }
+
+        .overlay { position: fixed; inset: 0; background: rgba(10,15,30,0.55); backdrop-filter: blur(2px); z-index: 1; }
+
+        .modal-wrapper { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 2; padding: 20px; }
+
+        .glass-card {
+            background: rgba(255,255,255,0.10);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 24px;
+            padding: 40px 40px;
+            max-width: 560px;
+            width: 100%;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.15);
+            animation: cardIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+            position: relative;
+        }
+        .glass-card::-webkit-scrollbar { width: 5px; }
+        .glass-card::-webkit-scrollbar-track { background: transparent; }
+        .glass-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.20); border-radius: 3px; }
+        @keyframes cardIn {
+            from { opacity: 0; transform: scale(0.88) translateY(20px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+
+        .card-close { position: absolute; top: 18px; right: 20px; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 1.15rem; line-height: 1; padding: 4px; transition: color 0.2s; }
+        .card-close:hover { color: #fff; }
+
+        .card-header { text-align: center; margin-bottom: 28px; }
+        .icon-ring { width: 76px; height: 76px; border-radius: 50%; background: rgba(52,152,219,0.18); border: 2px solid rgba(52,152,219,0.50); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 24px rgba(52,152,219,0.20); }
+        .icon-ring i { font-size: 1.9rem; color: #3498db; }
+        .card-header h2 { font-size: 1.55rem; font-weight: 700; color: #fff; margin-bottom: 6px; text-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+        .card-header p { color: rgba(255,255,255,0.58); font-size: 0.87rem; line-height: 1.5; }
+
+        .alert-glass { border-radius: 10px; font-size: 0.85rem; padding: 10px 14px; margin-bottom: 16px; }
+        .alert-glass.danger  { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.35); color: #f99; }
+        .alert-glass.info    { background: rgba(52,152,219,0.12); border: 1px solid rgba(52,152,219,0.28); color: rgba(255,255,255,0.75); font-size: 0.82rem; }
+
+        .f-group { margin-bottom: 16px; }
+        .f-label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.68); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        .form-control, .form-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08) !important;
+            border: 1px solid rgba(255,255,255,0.20) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            font-size: 0.88rem;
+            padding: 10px 13px;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+            -webkit-appearance: none;
+            box-shadow: none !important;
+            font-family: inherit;
+        }
+        .form-control::placeholder, .form-input::placeholder { color: rgba(255,255,255,0.35) !important; }
+        .form-control:focus, .form-input:focus { border-color: rgba(52,152,219,0.70) !important; background: rgba(255,255,255,0.12) !important; }
+        .form-control.is-invalid, .form-input.is-invalid { border-color: #e74c3c !important; }
+        select.form-control option { background: #1e2a44; color: #fff; }
+
+        .pw-wrap { position: relative; }
+        .pw-wrap .form-control { padding-right: 40px; }
+        .pw-toggle { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.40); font-size: 0.88rem; padding: 0; transition: color 0.2s; }
+        .pw-toggle:hover { color: rgba(255,255,255,0.80); }
+
+        .f-error, .f-error.invalid-feedback { color: #e74c3c; font-size: 0.77rem; margin-top: 4px; display: block; }
+        .f-error ul { margin: 0; padding: 0; list-style: none; }
+
+        .strength-container { margin-top: 6px; }
+        .strength-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); overflow: hidden; }
+        .strength-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background-color 0.3s; }
+        .strength-text { font-size: 0.75rem; margin-top: 3px; display: block; }
+        .match-indicator { font-size: 0.75rem; display: block; margin-top: 4px; }
+        .match-ok { color: #2ecc71; } .match-fail { color: #e74c3c; }
+
+        .btn-submit { width: 100%; background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; border: none; border-radius: 30px; padding: 13px; font-size: 0.95rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(52,152,219,0.35); transition: opacity 0.2s, transform 0.2s; margin-top: 6px; }
+        .btn-submit:hover { opacity: 0.90; transform: translateY(-1px); }
+        .btn-submit:active { transform: translateY(0); }
+
+        .card-link-row { text-align: center; margin-top: 14px; font-size: 0.83rem; color: rgba(255,255,255,0.48); }
+        .card-link-row a { color: #4fc3f7; text-decoration: none; }
+        .card-link-row a:hover { text-decoration: underline; }
+
+        @media (max-width: 480px) { .row-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="bg-page" aria-hidden="true">
+    <div class="bg-navbar">
+        <span class="bg-navbar-brand">Antarikchya Hydropower Portal</span>
+        <div class="bg-navbar-links"><span>Home</span><span>Watershed Delineation</span><span>My Stations</span></div>
+        <button class="bg-navbar-btn">Sign In</button>
+    </div>
+    <div class="bg-hero">
+        <div class="bg-hero-text"><h1>Nepal Hydropower</h1><p>Accurate watershed analysis for the hydrogeology sector.</p></div>
+    </div>
+    <div class="bg-wave">
+        <svg viewBox="0 0 1200 60" preserveAspectRatio="none">
+            <path d="M985.66,46.42C906.67,36,823.78,15.5,743.84,7.1c-82.26-8.67-168.06-8.17-250.45.19-57.84,5.87-114,15.54-172,20.93A600.21,600.21,0,0,1,0,13.68V60H1200V47.9C1132.19,59.46,1055.71,55.66,985.66,46.42Z"/>
+        </svg>
+    </div>
+    <div class="bg-features">
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Watershed Delineation</h3></div>
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Discharge Prediction</h3></div>
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Watershed Reports</h3></div>
+    </div>
+</div>
+
+<div class="overlay"></div>
+
+<div class="modal-wrapper">
+    <div class="glass-card">
+
+        <button class="card-close" onclick="window.location.href='{% url 'home' %}'" aria-label="Back to home">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="card-header">
+            <div class="icon-ring"><i class="fas fa-user-shield"></i></div>
+            <h2>Request Full Access</h2>
+            <p>Full accounts include Discharge Prediction access.<br>An administrator will review and approve your request.</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert-glass danger">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" action="{% url 'users:register' %}" novalidate>
+            {% csrf_token %}
+
+            <div class="row-2">
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.first_name.id_for_label }}">First Name <span style="color:#e74c3c;">*</span></label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<div class="f-error">{{ form.first_name.errors }}</div>{% endif %}
+                </div>
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.last_name.id_for_label }}">Last Name <span style="color:#e74c3c;">*</span></label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<div class="f-error">{{ form.last_name.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="f-group">
+                <label class="f-label" for="{{ form.email.id_for_label }}">Email Address <span style="color:#e74c3c;">*</span></label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="f-error">{{ form.email.errors }}</div>{% endif %}
+            </div>
+
+            <div class="f-group">
+                <label class="f-label" for="{{ form.organization.id_for_label }}">Organization <span style="color:#e74c3c;">*</span></label>
+                {{ form.organization }}
+                {% if form.organization.errors %}<div class="f-error">{{ form.organization.errors }}</div>{% endif %}
+            </div>
+
+            <div class="f-group">
+                <label class="f-label" for="{{ form.station.id_for_label }}">Station <span style="color:#e74c3c;">*</span></label>
+                {{ form.station }}
+                {% if form.station.errors %}<div class="f-error">{{ form.station.errors }}</div>{% endif %}
+            </div>
+
+            <div class="f-group">
+                <label class="f-label" for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+                {{ form.phone_number }}
+                {% if form.phone_number.errors %}<div class="f-error">{{ form.phone_number.errors }}</div>{% endif %}
+            </div>
+
+            <div class="row-2">
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.password1.id_for_label }}">Password <span style="color:#e74c3c;">*</span></label>
+                    <div class="pw-wrap" id="pw1wrap">
+                        {{ form.password1 }}
+                        <button type="button" class="pw-toggle" tabindex="-1" data-target="pw1wrap" aria-label="Toggle password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    {% if form.password1.errors %}<div class="f-error">{{ form.password1.errors }}</div>{% endif %}
+                    <div class="strength-container" id="strengthContainer" style="display:none;">
+                        <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                        <span class="strength-text" id="strengthText"></span>
+                    </div>
+                </div>
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.password2.id_for_label }}">Confirm Password <span style="color:#e74c3c;">*</span></label>
+                    <div class="pw-wrap" id="pw2wrap">
+                        {{ form.password2 }}
+                        <button type="button" class="pw-toggle" tabindex="-1" data-target="pw2wrap" aria-label="Toggle confirm password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    {% if form.password2.errors %}<div class="f-error">{{ form.password2.errors }}</div>{% endif %}
+                    <span class="match-indicator" id="matchIndicator"></span>
+                </div>
+            </div>
+
+            <div class="alert-glass info" style="margin-top:4px;">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                After registration your account will be reviewed and approved by an administrator before you can log in.
+            </div>
+
+            <button type="submit" class="btn-submit">Submit Registration</button>
+        </form>
+
+        <div class="card-link-row">Already have an account? <a href="{% url 'users:login' %}">Sign in</a></div>
+        <div class="card-link-row" style="margin-top:6px;">Just need downloads? <a href="{% url 'users:register_free' %}">Create free account</a></div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Password toggles
+    document.querySelectorAll('.pw-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const wrap = document.getElementById(this.dataset.target);
+            const input = wrap && wrap.querySelector('input');
+            if (!input) return;
+            const isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            this.querySelector('i').className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    });
+
+    const pwd1 = document.getElementById('id_password1');
+    const pwd2 = document.getElementById('id_password2');
+    const strengthContainer = document.getElementById('strengthContainer');
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+    const matchIndicator = document.getElementById('matchIndicator');
+
+    function getStrength(p) {
+        let s = 0;
+        if (p.length >= 8) s++; if (p.length >= 12) s++;
+        if (/[A-Z]/.test(p)) s++; if (/[0-9]/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p)) s++;
+        if (s <= 1) return { percent: 25,  color: '#dc1a22', label: 'Weak' };
+        if (s === 2) return { percent: 50,  color: '#f1c40f', label: 'Fair' };
+        if (s === 3) return { percent: 75,  color: '#2980b9', label: 'Good' };
+        return              { percent: 100, color: '#27ae60', label: 'Strong' };
+    }
+
+    if (pwd1) {
+        pwd1.addEventListener('input', function () {
+            if (!this.value) { strengthContainer.style.display = 'none'; return; }
+            strengthContainer.style.display = 'block';
+            const s = getStrength(this.value);
+            strengthFill.style.width = s.percent + '%';
+            strengthFill.style.backgroundColor = s.color;
+            strengthText.textContent = s.label;
+            strengthText.style.color = s.color;
+        });
+    }
+
+    function checkMatch() {
+        if (!pwd2 || !pwd1 || !pwd2.value) { matchIndicator.textContent = ''; return; }
+        if (pwd1.value === pwd2.value) {
+            matchIndicator.textContent = '✓ Passwords match';
+            matchIndicator.className = 'match-indicator match-ok';
+        } else {
+            matchIndicator.textContent = '✗ Passwords do not match';
+            matchIndicator.className = 'match-indicator match-fail';
+        }
+    }
+    if (pwd2) pwd2.addEventListener('input', checkMatch);
+    if (pwd1) pwd1.addEventListener('input', checkMatch);
+
+    // Client-side validation
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            let valid = true;
+            form.querySelectorAll('.client-error').forEach(el => el.remove());
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+            function err(input, msg) {
+                if (!input) return;
+                input.classList.add('is-invalid');
+                const span = document.createElement('span');
+                span.className = 'f-error client-error';
+                span.textContent = msg;
+                const group = input.closest('.f-group');
+                if (group) group.appendChild(span);
+                valid = false;
+            }
+
+            const fn      = document.getElementById('id_first_name');
+            const ln      = document.getElementById('id_last_name');
+            const email   = document.getElementById('id_email');
+            const org     = document.getElementById('id_organization');
+            const station = document.getElementById('id_station');
+
+            if (fn && !fn.value.trim())   err(fn,   'First name is required');
+            if (ln && !ln.value.trim())   err(ln,   'Last name is required');
+            if (email) {
+                if (!email.value.trim()) err(email, 'Email is required');
+                else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) err(email, 'Enter a valid email address');
+            }
+            if (org && !org.value.trim()) err(org, 'Organization is required');
+            if (station && !station.value) err(station, 'Please select a station');
+            if (pwd1 && !pwd1.value)      err(pwd1, 'Password is required');
+            else if (pwd1 && pwd1.value.length < 8) err(pwd1, 'Password must be at least 8 characters');
+            if (pwd2 && !pwd2.value)      err(pwd2, 'Please confirm your password');
+            else if (pwd1 && pwd2 && pwd1.value !== pwd2.value) err(pwd2, 'Passwords do not match');
+            if (!valid) e.preventDefault();
+        });
+    }
+
+    document.querySelectorAll('.form-control, .form-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+            const group = this.closest('.f-group');
+            if (group) group.querySelectorAll('.client-error').forEach(el => el.remove());
+        });
+    });
+});
+</script>
+</body>
+</html>
+<body>
+<div class="standalone-register-page">
+    <div class="container h-100 d-flex align-items-center justify-content-center">
+        <div class="register-container">
+            <div class="register-card">
+                <button type="button" class="btn-close" aria-label="Close" onclick="window.location.href='{% url 'home' %}'"></button>
+                <div class="register-header">
+                    <h2 class="register-title">Register for Access</h2>
+                </div>
+                <div class="register-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <form method="post" action="{% url 'users:register' %}" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.first_name.id_for_label }}">First Name</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.first_name.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.last_name.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.email.id_for_label }}">Email</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.email.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.organization.id_for_label }}">Organization</label>
+                            {{ form.organization }}
+                            {% if form.organization.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.organization.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.station.id_for_label }}">Select Station</label>
+                            {{ form.station }}
+                            {% if form.station.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.station.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+                            {{ form.phone_number }}
+                            {% if form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.phone_number.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group password-wrapper">
+                                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                                    {{ form.password1 }}
+                                    <button type="button" class="toggle-password" tabindex="-1" aria-label="Toggle password visibility">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if form.password1.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.password1.errors }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="password-strength" id="strengthContainer" style="display:none">
+                                        <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                                        <span class="strength-text" id="strengthText"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group password-wrapper">
+                                    <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                                    {{ form.password2 }}
+                                    <button type="button" class="toggle-password" tabindex="-1" aria-label="Toggle confirm password visibility">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if form.password2.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.password2.errors }}
+                                        </div>
+                                    {% endif %}
+                                    <span class="match-indicator" id="matchIndicator"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <p class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i> After registration, your account will need to be approved by an administrator before you can log in.
+                            </p>
+                        </div>
+                        
+                        <button type="submit" class="register-btn">Register</button>
+                        
+                        <p class="login-text">
+                            Already have an account? <a href="{% url 'users:login' %}">Login here</a>
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Maintain white text color in inputs
+    document.querySelectorAll('.form-control').forEach(function (input) {
+        input.style.color = 'white';
+        input.addEventListener('input',  function () { this.style.color = 'white'; });
+        input.addEventListener('change', function () { this.style.color = 'white'; });
+    });
+
+    // Show/hide password toggles
+    document.querySelectorAll('.toggle-password').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const wrapper = this.closest('.password-wrapper');
+            const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+            if (!input) return;
+            const isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            this.querySelector('i').className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    });
+
+    // Password strength indicator
+    const pwd1 = document.getElementById('id_password1');
+    const strengthContainer = document.getElementById('strengthContainer');
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+
+    function getStrength(password) {
+        let score = 0;
+        if (password.length >= 8)  score++;
+        if (password.length >= 12) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+        if (score <= 1) return { percent: 25,  color: '#dc1a22', label: 'Weak' };
+        if (score === 2) return { percent: 50,  color: '#f1c40f', label: 'Fair' };
+        if (score === 3) return { percent: 75,  color: '#2980b9', label: 'Good' };
+        return               { percent: 100, color: '#27ae60', label: 'Strong' };
+    }
+
+    if (pwd1) {
+        pwd1.addEventListener('input', function () {
+            if (!this.value) {
+                strengthContainer.style.display = 'none';
+                return;
+            }
+            strengthContainer.style.display = 'block';
+            const s = getStrength(this.value);
+            strengthFill.style.width = s.percent + '%';
+            strengthFill.style.backgroundColor = s.color;
+            strengthText.textContent = s.label;
+            strengthText.style.color = s.color;
+        });
+    }
+
+    // Confirm password match indicator
+    const pwd2 = document.getElementById('id_password2');
+    const matchIndicator = document.getElementById('matchIndicator');
+
+    function checkMatch() {
+        if (!pwd2 || !pwd1 || !pwd2.value) { matchIndicator.textContent = ''; return; }
+        if (pwd1.value === pwd2.value) {
+            matchIndicator.textContent = '✓ Passwords match';
+            matchIndicator.className = 'match-indicator match-ok';
+        } else {
+            matchIndicator.textContent = '✗ Passwords do not match';
+            matchIndicator.className = 'match-indicator match-fail';
+        }
+    }
+
+    if (pwd2) { pwd2.addEventListener('input', checkMatch); }
+    if (pwd1) { pwd1.addEventListener('input', checkMatch); }
+
+    // Form validation on submit
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            let valid = true;
+            form.querySelectorAll('.client-error').forEach(el => el.remove());
+            form.querySelectorAll('.form-control.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+            function err(input, msg) {
+                if (!input) return;
+                input.classList.add('is-invalid');
+                const span = document.createElement('span');
+                span.className = 'field-error client-error';
+                span.textContent = msg;
+                const group = input.closest('.form-group');
+                if (group) group.appendChild(span);
+                valid = false;
+            }
+
+            const firstName = document.getElementById('id_first_name');
+            const lastName  = document.getElementById('id_last_name');
+            const email     = document.getElementById('id_email');
+            const org       = document.getElementById('id_organization');
+            const station   = document.getElementById('id_station');
+
+            if (firstName && !firstName.value.trim()) err(firstName, 'First name is required');
+            if (lastName  && !lastName.value.trim())  err(lastName,  'Last name is required');
+            if (email) {
+                if (!email.value.trim()) {
+                    err(email, 'Email is required');
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+                    err(email, 'Enter a valid email address');
+                }
+            }
+            if (org && !org.value.trim()) err(org, 'Organization is required');
+            if (station && !station.value) err(station, 'Please select a station');
+            if (pwd1) {
+                if (!pwd1.value) {
+                    err(pwd1, 'Password is required');
+                } else if (pwd1.value.length < 8) {
+                    err(pwd1, 'Password must be at least 8 characters');
+                }
+            }
+            if (pwd2) {
+                if (!pwd2.value) {
+                    err(pwd2, 'Please confirm your password');
+                } else if (pwd1 && pwd1.value !== pwd2.value) {
+                    err(pwd2, 'Passwords do not match');
+                }
+            }
+            if (!valid) e.preventDefault();
+        });
+    }
+
+    // Clear errors on typing
+    document.querySelectorAll('.form-control').forEach(function (input) {
+        input.addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+            const group = this.closest('.form-group');
+            if (group) group.querySelectorAll('.client-error').forEach(el => el.remove());
+        });
+    });
+});
+</script>
+</body>
+</html>

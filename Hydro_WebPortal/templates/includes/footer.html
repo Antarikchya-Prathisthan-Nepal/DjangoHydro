@@ -1,0 +1,35 @@
+{% load static %}
+<!-- Footer -->
+<footer class="footer" id="contact" style="background-image: url('{% static 'images/Footer_bg.svg' %}');">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-section footer-section--brand">
+                <h3>Antarikchya Hydropower Portal</h3>
+                <p>Advanced watershed delineation portal for accurate hydrological analysis in Nepal.</p>
+                <div class="footer-nepal-badge">
+                    <span class="footer-nepal-flag"><img src="{% static 'images/nepal_flag.svg' %}" alt="Nepal Flag"></span>
+                    <div class="footer-nepal-text">
+                        <strong>Developed in Nepal</strong>
+                        <span>Empowering Global Green Energy</span>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/delineation/">Delineation Tool</a></li>
+                    <li><a href="/discharge-prediction/">Discharge Prediction</a></li>
+                    <li><a href="/watershed-report/">Watershed Report</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p>For technical support and inquiries about watershed delineation services. Mail us: antarikchya@gmail.com</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; {% now "Y" %} Antarikchya Hydropower Portal. All rights reserved.</p>
+        </div>
+    </div>
+</footer>

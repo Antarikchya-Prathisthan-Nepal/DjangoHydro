@@ -1,0 +1,122 @@
+/* Footer styles for dashboard pages */
+.dashboard-footer,
+.footer {
+    background: #2c3e50;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: white;
+    padding: 60px 0 20px;
+    margin-top: 30px;
+    clear: both;
+    position: relative;
+    isolation: isolate;
+}
+
+.dashboard-footer::before,
+.footer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 34, 46, 0.60);
+    z-index: -1;
+}
+
+/* Reset dashboard's global .container grid so footer lays out correctly */
+.footer .container,
+.dashboard-footer .container {
+    display: block;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.footer-section h3,
+.footer-section h4 {
+    margin-bottom: 1rem;
+    color: #3498db;
+}
+
+.footer-section ul {
+    list-style: none;
+}
+
+.footer-section ul li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-section ul li a {
+    color: #bdc3c7;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.footer-section ul li a:hover {
+    color: #3498db;
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid #34495e;
+    color: #bdc3c7;
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* Nepal badge */
+.footer-nepal-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1.2rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    width: fit-content;
+}
+
+.footer-nepal-flag {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.footer-nepal-flag img {
+    width: 36px;
+    height: auto;
+    display: block;
+}
+
+.footer-nepal-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.footer-nepal-text strong {
+    font-size: 0.9rem;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.footer-nepal-text span {
+    font-size: 0.75rem;
+    color: #3ecfa0;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}

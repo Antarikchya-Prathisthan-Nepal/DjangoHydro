@@ -1,0 +1,960 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watershed Report | APN Hydro Portal</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+
+    <!-- CSRF for AJAX -->
+    <script>window.CSRF_TOKEN = '{{ csrf_token }}';
+    window.USER_AUTHENTICATED = {% if request.user.is_authenticated %}true{% else %}false{% endif %};
+    </script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet.draw -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <!-- Chart.js (loaded in body, deferred) -->
+
+    <style>
+        /* ── Reset & base ─────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #e0e0e0; }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        #app { display: flex; height: 100vh; overflow: hidden; }
+
+        #sidebar {
+            width: 380px;
+            min-width: 300px;
+            background: #16213e;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border-right: 1px solid #0f3460;
+            z-index: 1000;
+        }
+
+        #map-container { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+
+        /* ── Sidebar header ───────────────────────────────────────── */
+        .sidebar-header {
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            padding: 16px 18px 12px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .sidebar-header h1 { font-size: 1.1rem; color: #4fc3f7; font-weight: 600; margin-bottom: 4px; }
+        .sidebar-header p  { font-size: 0.78rem; color: #9e9e9e; }
+
+        /* ── Sections ─────────────────────────────────────────────── */
+        .section {
+            padding: 14px 16px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .section-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #4fc3f7;
+            margin-bottom: 10px;
+        }
+
+        /* ── Buttons ──────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: background 0.18s, opacity 0.18s;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-draw    { background: #1976d2; color: #fff; }
+        .btn-draw:hover:not(:disabled)    { background: #1565c0; }
+        .btn-clear   { background: #424242; color: #fff; }
+        .btn-clear:hover:not(:disabled)   { background: #616161; }
+        .btn-analyze { background: #2e7d32; color: #fff; width: 100%; padding: 10px; font-size: 0.9rem; border-radius: 6px; }
+        .btn-analyze:hover:not(:disabled) { background: #1b5e20; }
+        .btn-download { background: #01579b; color: #fff; width: 100%; padding: 8px; font-size: 0.82rem; border-radius: 5px; margin-top: 6px; }
+        .btn-download:hover:not(:disabled) { background: #0277bd; }
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── File upload ──────────────────────────────────────────── */
+        .upload-label {
+            display: block;
+            padding: 9px 14px;
+            background: #0f3460;
+            border: 1px dashed #4fc3f7;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #b0bec5;
+            text-align: center;
+            transition: background 0.18s;
+        }
+        .upload-label:hover { background: #1a4a7a; color: #e0e0e0; }
+        #file-input { display: none; }
+        #file-name  { margin-top: 6px; font-size: 0.75rem; color: #80cbc4; word-break: break-all; }
+
+        /* ── Status / spinner ─────────────────────────────────────── */
+        #status-bar {
+            padding: 10px 16px;
+            font-size: 0.8rem;
+            color: #ffa726;
+            display: none;
+            background: rgba(255,167,38,0.08);
+            border-bottom: 1px solid #0f3460;
+        }
+        #status-bar.visible { display: block; }
+        .spinner {
+            display: inline-block;
+            width: 12px; height: 12px;
+            border: 2px solid rgba(255,167,38,0.3);
+            border-top-color: #ffa726;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Results panel ────────────────────────────────────────── */
+        #results { display: none; }
+        #results.visible { display: block; }
+
+        .result-section { padding: 14px 16px; border-bottom: 1px solid #0f3460; }
+        .result-title   { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #80cbc4; margin-bottom: 10px; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card {
+            background: #0f3460;
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+        .stat-card .val { font-size: 1.3rem; font-weight: 700; color: #4fc3f7; }
+        .stat-card .lbl { font-size: 0.7rem; color: #9e9e9e; margin-top: 2px; }
+        .stat-card.full { grid-column: span 2; }
+
+        /* LULC table */
+        .lulc-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .lulc-row:last-child { border-bottom: none; }
+        .lulc-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+        .lulc-name  { flex: 1; }
+        .lulc-area  { color: #80cbc4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .lulc-pct   { color: #9e9e9e; font-size: 0.72rem; width: 40px; text-align: right; }
+        .lulc-bar-bg { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 3px; }
+        .lulc-bar    { height: 4px; border-radius: 2px; transition: width 0.5s; }
+
+        /* Buildings */
+        .bld-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .bld-row:last-child { border-bottom: none; }
+        .bld-count { color: #80cbc4; font-variant-numeric: tabular-nums; }
+
+        /* Wards */
+        .ward-list { max-height: 180px; overflow-y: auto; padding-right: 4px; }
+        .ward-item {
+            background: #0f3460;
+            border-radius: 5px;
+            padding: 7px 10px;
+            margin-bottom: 5px;
+            font-size: 0.77rem;
+        }
+        .ward-item .ward-name { font-weight: 600; color: #e0e0e0; }
+        .ward-item .ward-meta { color: #9e9e9e; margin-top: 2px; }
+        .ward-list::-webkit-scrollbar { width: 4px; }
+        .ward-list::-webkit-scrollbar-track { background: transparent; }
+        .ward-list::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+
+        /* Error */
+        .error-box { background: rgba(244,67,54,0.12); border: 1px solid #f44336; border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; color: #ef9a9a; }
+
+        /* ── Report name input ────────────────────────────────────── */
+        .name-input {
+            width: 100%;
+            background: #0f3460;
+            border: 1px solid #1a4a7a;
+            border-radius: 5px;
+            color: #e0e0e0;
+            padding: 7px 10px;
+            font-size: 0.82rem;
+            margin-bottom: 8px;
+            outline: none;
+            transition: border-color 0.18s;
+        }
+        .name-input:focus { border-color: #4fc3f7; }
+        .name-input::placeholder { color: #546e7a; }
+
+        /* ── History panel ────────────────────────────────────────── */
+        .hist-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            background: #0f3460;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .hist-item:hover { background: #1a4a7a; }
+        .hist-info { flex: 1; overflow: hidden; }
+        .hist-name { font-size: 0.8rem; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hist-meta { font-size: 0.7rem; color: #9e9e9e; margin-top: 1px; }
+        .hist-del  { background: none; border: none; color: #ef5350; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; border-radius: 3px; flex-shrink: 0; }
+        .hist-del:hover { background: rgba(239,83,80,0.15); }
+        .hist-dl   { color: #4fc3f7; font-size: 0.85rem; padding: 2px 4px; border-radius: 3px; flex-shrink: 0; text-decoration: none; }
+        .hist-dl:hover { background: rgba(79,195,247,0.12); }
+        .hist-empty { font-size: 0.8rem; color: #546e7a; text-align: center; padding: 8px 0; }
+
+        /* Chart canvas */
+        #lulc-chart-wrap { margin-bottom: 12px; }
+        #lulcChart { max-height: 180px; }
+
+        /* ── Nav back link ────────────────────────────────────────── */
+        .nav-back {
+            display: inline-block;
+            font-size: 1.01rem;
+            color: #fff;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 22px 8px 16px;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(52,152,219,0.13);
+            text-decoration: none;
+            margin-bottom: 12px;
+            margin-right: 6px;
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+            position: relative;
+        }
+        .nav-back::before {
+            content: '\2190';
+            margin-right: 8px;
+            font-size: 1.1em;
+            vertical-align: middle;
+        }
+        .nav-back:hover {
+            background: linear-gradient(135deg, #217dbb 0%, #145a8a 100%);
+            color: #eaf6fb;
+            box-shadow: 0 4px 18px rgba(52,152,219,0.22);
+            text-decoration: none;
+        }
+
+        /* ── Map controls floating hint ───────────────────────────── */
+        #draw-hint {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15,52,96,0.9);
+            color: #e0e0e0;
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            display: none;
+            z-index: 800;
+            white-space: nowrap;
+        }
+        #draw-hint.visible { display: block; }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            #sidebar { width: 100%; height: 50vh; border-right: none; border-bottom: 1px solid #0f3460; }
+            #app { flex-direction: column; }
+            #map-container { height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────────────────── -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <a href="{% url 'home' %}" class="nav-back">Back to Portal</a>
+            <h1>&#128204; Watershed Report</h1>
+            <p>Analyze population, land use, buildings &amp; wards within a watershed boundary.</p>
+        </div>
+
+        <!-- Draw controls -->
+        <div class="section">
+            <div class="section-title">1 &mdash; Define boundary</div>
+            <div class="btn-row" style="margin-bottom:10px;">
+                <button id="btn-draw" class="btn btn-draw">&#9998; Draw Polygon</button>
+                <button id="btn-clear" class="btn btn-clear">&#10005; Clear</button>
+            </div>
+            <div>
+                <label class="upload-label" for="file-input">
+                    &#128194; Upload GeoJSON or zipped shapefile (max. 25 MB)
+                </label>
+                <input type="file" id="file-input" accept=".geojson,.json,.zip">
+                <div id="file-name"></div>
+            </div>
+        </div>
+
+        <!-- Analyze button -->
+        <div class="section">
+            <div class="section-title">2 &mdash; Name &amp; run analysis</div>
+            <input type="text" id="report-name" class="name-input" placeholder="Report name (optional)" maxlength="200">
+            <button id="btn-analyze" class="btn btn-analyze" disabled>
+                &#128202; Analyze Watershed
+            </button>
+        </div>
+
+        <!-- Status bar -->
+        <div id="status-bar">
+            <span class="spinner"></span>
+            <span id="status-text">Analyzing&hellip;</span>
+        </div>
+
+        <!-- Results -->
+        <div id="results">
+
+            <!-- Summary -->
+            <div class="result-section" id="res-summary">
+                <div class="result-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>Summary</span>
+                    <button id="btn-download" class="btn btn-download" disabled style="width:auto;padding:4px 12px;margin:0;font-size:0.75rem;">
+                        &#128438; Download Report
+                    </button>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="val" id="res-area">—</div>
+                        <div class="lbl">Area (km²)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val" id="res-pop">—</div>
+                        <div class="lbl">Est. Population</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val" id="res-bld">—</div>
+                        <div class="lbl">Buildings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val" id="res-wards">—</div>
+                        <div class="lbl">Wards</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LULC -->
+            <div class="result-section" id="res-lulc-section">
+                <div class="result-title">Land Use / Land Cover</div>
+                <div id="lulc-chart-wrap">
+                    <canvas id="lulcChart"></canvas>
+                </div>
+                <div id="lulc-rows"></div>
+            </div>
+
+            <!-- Buildings -->
+            <div class="result-section" id="res-bld-section">
+                <div class="result-title">Buildings by Type</div>
+                <div id="bld-rows"></div>
+            </div>
+
+            <!-- Wards -->
+            <div class="result-section" id="res-wards-section">
+                <div class="result-title">Administrative Units</div>
+                <div class="stat-grid" style="margin-bottom:10px;">
+                    <div class="stat-card">
+                        <div class="val" id="res-district-count">—</div>
+                        <div class="lbl">Districts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val" id="res-muni-count">—</div>
+                        <div class="lbl">Municipalities</div>
+                    </div>
+                </div>
+                <div class="ward-list" id="ward-list"></div>
+            </div>
+
+        </div><!-- /#results -->
+
+        <!-- History panel -->
+        <div class="section" id="history-section">
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>&#128197; Saved Reports</span>
+                <span id="hist-count" style="color:#9e9e9e;font-weight:400;"></span>
+            </div>
+            <div id="hist-list"><div class="hist-empty">No saved reports yet.</div></div>
+        </div>
+
+    </div><!-- /#sidebar -->
+
+    <!-- ── MAP ──────────────────────────────────────────────────────── -->
+    <div id="map-container">
+        <div id="draw-hint">Click to start drawing &mdash; double-click to finish</div>
+        <div id="map"></div>
+    </div>
+
+</div><!-- /#app -->
+
+{% include 'users/_auth_modal.html' %}
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// Map setup
+// ────────────────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true }).setView([28.0, 84.0], 7);
+
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+});
+
+const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19,
+});
+
+satelliteLayer.addTo(map);
+
+L.control.layers(
+    {  'Satellite': satelliteLayer, 'OpenStreetMap': osmLayer },
+    {},
+    { position: 'topright', collapsed: false }
+).addTo(map);
+
+// Draw feature group
+const drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+const drawControl = new L.Control.Draw({
+    edit: { featureGroup: drawnItems, remove: true },
+    draw: {
+        polygon: {
+            shapeOptions: { color: '#4fc3f7', fillOpacity: 0.15, weight: 2 },
+            allowIntersection: false,
+        },
+        polyline: false, rectangle: false, circle: false,
+        circlemarker: false, marker: false,
+    },
+});
+// Draw control NOT added to map yet; we add it programmatically on button click.
+
+let currentGeom = null;  // GeoJSON geometry dict
+let lulcChartInst = null;
+let currentReportId = null;  // ID of the last saved report
+let lulcMapOverlay = null;   // Leaflet imageOverlay for LULC
+
+const btnDownload = document.getElementById('btn-download');
+btnDownload.addEventListener('click', async () => {
+    if (!currentGeom) return;
+    if (window.USER_AUTHENTICATED) {
+        if (currentReportId) {
+            // Already saved — open print page directly
+            const url = `{% url 'watershed_report:report_print' 0 %}`.replace('/0/', `/${currentReportId}/`) + '#print';
+            window.open(url, '_blank');
+        } else {
+            // Logged in but analysis was done before login (edge case)
+            await _saveAndDownload();
+        }
+    } else {
+        // Show auth modal; after login save + download
+        window.showAuthModal(
+            async () => {
+                window.USER_AUTHENTICATED = true;
+                await _saveAndDownload();
+            },
+            window.location.href
+        );
+    }
+});
+
+async function _saveAndDownload() {
+    setStatus('Saving report…');
+    try {
+        const resp = await fetch("{% url 'watershed_report:save_report' %}", {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN },
+            body:    JSON.stringify({
+                geometry: currentGeom,
+                name:     document.getElementById('report-name').value.trim(),
+            }),
+        });
+        const data = await resp.json();
+        setStatus('');
+        if (!data.success) { showError(data.error || 'Could not save report.'); return; }
+        currentReportId = data.report_id;
+        btnDownload.disabled = false;
+        const url = `{% url 'watershed_report:report_print' 0 %}`.replace('/0/', `/${currentReportId}/`) + '#print';
+        window.open(url, '_blank');
+        loadHistory();
+    } catch (err) {
+        setStatus('');
+        showError('Network error: ' + err.message);
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Draw button
+// ────────────────────────────────────────────────────────────────────────────
+const btnDraw   = document.getElementById('btn-draw');
+const btnClear  = document.getElementById('btn-clear');
+const btnAnalyze = document.getElementById('btn-analyze');
+const drawHint  = document.getElementById('draw-hint');
+let drawControlAdded = false;
+
+btnDraw.addEventListener('click', () => {
+    drawnItems.clearLayers();
+    currentGeom = null;
+    setAnalyzeEnabled(false);
+    clearResults();
+
+    if (!drawControlAdded) {
+        map.addControl(drawControl);
+        drawControlAdded = true;
+    }
+
+    // Programmatically activate polygon draw mode
+    new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+    drawHint.classList.add('visible');
+});
+
+btnClear.addEventListener('click', () => {
+    drawnItems.clearLayers();
+    currentGeom = null;
+    currentReportId = null;
+    btnDownload.disabled = true;
+    setAnalyzeEnabled(false);
+    clearResults();
+    removeLulcMapOverlay();
+    document.getElementById('file-name').textContent = '';
+    document.getElementById('file-input').value = '';
+    drawHint.classList.remove('visible');
+});
+
+map.on(L.Draw.Event.CREATED, (e) => {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(e.layer);
+    currentGeom = e.layer.toGeoJSON().geometry;
+    setAnalyzeEnabled(true);
+    drawHint.classList.remove('visible');
+    // Fit map to drawn shape
+    map.fitBounds(e.layer.getBounds(), { padding: [40, 40] });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// File upload
+// ────────────────────────────────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    document.getElementById('file-name').textContent = file.name;
+    drawnItems.clearLayers();
+    currentGeom = null;
+    clearResults();
+    setAnalyzeEnabled(false);
+    setStatus('Reading file…');
+
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.geojson') || name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const obj = JSON.parse(ev.target.result);
+                const geom = extractGeom(obj);
+                if (!geom) { setStatus('No Polygon/MultiPolygon found in file.'); return; }
+                currentGeom = geom;
+                previewGeom(geom);
+                setStatus('');
+                setAnalyzeEnabled(true);
+            } catch (err) {
+                setStatus('Could not parse GeoJSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    } else if (name.endsWith('.zip')) {
+        // Zipped SHP: send directly to server for parsing
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('csrfmiddlewaretoken', window.CSRF_TOKEN);
+
+        // We'll use the analyze endpoint to parse+analyze in one shot
+        currentGeom = { _file: file };  // sentinel
+        setStatus('');
+        setAnalyzeEnabled(true);
+    } else {
+        setStatus('Unsupported file type.');
+    }
+});
+
+function extractGeom(obj) {
+    if (!obj) return null;
+    if (obj.type === 'Polygon' || obj.type === 'MultiPolygon') return obj;
+    if (obj.type === 'Feature') return obj.geometry;
+    if (obj.type === 'FeatureCollection' && obj.features?.length)
+        return obj.features[0].geometry;
+    return null;
+}
+
+function previewGeom(geom) {
+    const layer = L.geoJSON({ type: 'Feature', geometry: geom }, {
+        style: { color: '#4fc3f7', fillOpacity: 0.15, weight: 2 },
+    });
+    drawnItems.clearLayers();
+    drawnItems.addLayer(layer);
+    map.fitBounds(layer.getBounds(), { padding: [40, 40] });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Analyze
+// ────────────────────────────────────────────────────────────────────────────
+btnAnalyze.addEventListener('click', () => {
+    if (!currentGeom) return;
+    btnAnalyze.disabled = true;
+    setStatus('Running analysis… this may take a moment for large areas.');
+    clearResults();
+
+    // ZIP file path: multipart form
+    if (currentGeom._file) {
+        const formData = new FormData();
+        formData.append('file', currentGeom._file);
+        formData.append('name', document.getElementById('report-name').value.trim());
+        fetch("{% url 'watershed_report:analyze' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+            body: formData,
+        })
+        .then(r => r.json())
+        .then(handleResult)
+        .catch(err => handleError(err.message));
+        return;
+    }
+
+    // JSON geometry path
+    fetch("{% url 'watershed_report:analyze' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.CSRF_TOKEN,
+        },
+        body: JSON.stringify({
+            geometry: currentGeom,
+            name: document.getElementById('report-name').value.trim(),
+        }),
+    })
+    .then(r => r.json())
+    .then(handleResult)
+    .catch(err => handleError(err.message));
+
+});
+
+function handleResult(data) {
+    setStatus('');
+    btnAnalyze.disabled = false;
+    if (!data.success) {
+        showError(data.error || 'Unknown error');
+        return;
+    }
+    currentReportId = data.report_id || null;
+    // Enable download for everyone who has results; auth is checked on click.
+    btnDownload.disabled = !currentGeom;
+    renderResults(data.results);
+    loadHistory();  // refresh history panel after save
+}
+
+function handleError(msg) {
+    setStatus('');
+    btnAnalyze.disabled = false;
+    showError('Request failed: ' + msg);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Render results
+// ────────────────────────────────────────────────────────────────────────────
+function renderResults(r) {
+    document.getElementById('results').classList.add('visible');
+
+    // Summary stats
+    document.getElementById('res-area').textContent = fmt(r.area_km2, 1);
+
+    const pop = r.population;
+    document.getElementById('res-pop').textContent =
+        pop?.error ? '⚠' : fmtNum(pop?.total ?? 0);
+
+    const bld = r.buildings;
+    document.getElementById('res-bld').textContent =
+        bld?.error ? '⚠' : fmtNum(bld?.total ?? 0);
+
+    const wards = r.wards;
+    document.getElementById('res-wards').textContent =
+        wards?.error ? '⚠' : (wards?.ward_count ?? 0);
+
+    // LULC
+    renderLulc(r.lulc);
+
+    // Buildings by type
+    renderBuildings(r.buildings);
+
+    // Wards
+    renderWards(r.wards);
+
+    // LULC map overlay
+    renderLulcMapOverlay(r.lulc_overlay);
+}
+
+function renderLulcMapOverlay(overlay) {
+    removeLulcMapOverlay();
+    if (!overlay || !overlay.image || !overlay.bounds) return;
+    lulcMapOverlay = L.imageOverlay(overlay.image, overlay.bounds, {
+        opacity: 0.72,
+        interactive: false,
+        zIndex: 400,
+    }).addTo(map);
+}
+
+function removeLulcMapOverlay() {
+    if (lulcMapOverlay) {
+        map.removeLayer(lulcMapOverlay);
+        lulcMapOverlay = null;
+    }
+}
+
+function renderLulc(lulc) {
+    const container = document.getElementById('lulc-rows');
+    container.innerHTML = '';
+
+    if (!lulc || lulc.error) {
+        container.innerHTML = `<div class="error-box">${lulc?.error || 'No data'}</div>`;
+        if (lulcChartInst) { lulcChartInst.destroy(); lulcChartInst = null; }
+        return;
+    }
+    if (!Array.isArray(lulc) || lulc.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:#9e9e9e;">No LULC data for this area.</div>';
+        return;
+    }
+
+    // Chart
+    const labels = lulc.map(l => l.class_name);
+    const values = lulc.map(l => l.area_km2);
+    const colors = lulc.map(l => l.color);
+
+    if (lulcChartInst) lulcChartInst.destroy();
+    lulcChartInst = new Chart(document.getElementById('lulcChart'), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 1, borderColor: '#16213e' }] },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.label}: ${fmt(ctx.parsed, 2)} km²`,
+                    },
+                },
+            },
+        },
+    });
+
+    // Rows
+    lulc.forEach(l => {
+        const row = document.createElement('div');
+        row.className = 'lulc-row';
+        row.innerHTML = `
+            <div class="lulc-swatch" style="background:${l.color}"></div>
+            <div class="lulc-name">${l.class_name}</div>
+            <div class="lulc-area">${fmt(l.area_km2, 2)} km²</div>
+            <div class="lulc-pct">${l.percentage}%</div>
+        `;
+        const barWrap = document.createElement('div');
+        barWrap.innerHTML = `
+            <div class="lulc-bar-bg">
+                <div class="lulc-bar" style="width:${l.percentage}%;background:${l.color}"></div>
+            </div>`;
+        // Insert bar inside the row (span full width below)
+        container.appendChild(row);
+        container.appendChild(barWrap.firstElementChild);
+    });
+}
+
+function renderBuildings(bld) {
+    const container = document.getElementById('bld-rows');
+    container.innerHTML = '';
+    if (!bld || bld.error) {
+        container.innerHTML = `<div class="error-box">${bld?.error || 'No data'}</div>`;
+        return;
+    }
+    if (!bld.by_type || bld.by_type.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem;color:#9e9e9e;">No building data for this area.</div>';
+        return;
+    }
+    bld.by_type.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'bld-row';
+        const typeName = item.type || 'unclassified';
+        const count    = item.count ?? 0;
+        row.innerHTML = `<span>${capitalise(typeName)}</span><span class="bld-count">${fmtNum(count)}</span>`;
+        container.appendChild(row);
+    });
+}
+
+function renderWards(wards) {
+    if (!wards || wards.error) {
+        document.getElementById('ward-list').innerHTML =
+            `<div class="error-box">${wards?.error || 'No data'}</div>`;
+        return;
+    }
+
+    document.getElementById('res-district-count').textContent = wards.district_count ?? 0;
+    document.getElementById('res-muni-count').textContent     = (wards.municipalities?.length ?? 0);
+
+    const list = document.getElementById('ward-list');
+    list.innerHTML = '';
+    (wards.wards || []).forEach(w => {
+        const item = document.createElement('div');
+        item.className = 'ward-item';
+        item.innerHTML = `
+            <div class="ward-name">${w.municipality || 'Unknown'} &mdash; Ward ${w.ward_number ?? '?'}</div>
+            <div class="ward-meta">${w.district} &middot; ${w.type || ''} &middot; ${w.area_sqkm} km²</div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────────
+function setAnalyzeEnabled(yes) { btnAnalyze.disabled = !yes; }
+
+function setStatus(msg) {
+    const bar = document.getElementById('status-bar');
+    if (msg) {
+        document.getElementById('status-text').textContent = msg;
+        bar.classList.add('visible');
+    } else {
+        bar.classList.remove('visible');
+    }
+}
+
+function clearResults() {
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('lulc-rows').innerHTML = '';
+    document.getElementById('bld-rows').innerHTML  = '';
+    document.getElementById('ward-list').innerHTML = '';
+    if (lulcChartInst) { lulcChartInst.destroy(); lulcChartInst = null; }
+    removeLulcMapOverlay();
+}
+
+function showError(msg) {
+    document.getElementById('results').classList.add('visible');
+    document.getElementById('res-summary').innerHTML =
+        `<div class="error-box">${msg}</div>`;
+}
+
+function fmt(n, dec) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: dec, minimumFractionDigits: dec });
+}
+function fmtNum(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('en-US');
+}
+function capitalise(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ────────────────────────────────────────────────────────────────────────────
+// History panel
+// ────────────────────────────────────────────────────────────────────────────
+function loadHistory() {
+    fetch("{% url 'watershed_report:history' %}")
+        .then(r => r.json())
+        .then(data => renderHistory(data.reports))
+        .catch(() => {});
+}
+
+function renderHistory(reports) {
+    const list = document.getElementById('hist-list');
+    const cnt  = document.getElementById('hist-count');
+    list.innerHTML = '';
+    cnt.textContent = reports.length ? `(${reports.length})` : '';
+
+    if (!reports.length) {
+        list.innerHTML = '<div class="hist-empty">No saved reports yet.</div>';
+        return;
+    }
+
+    reports.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'hist-item';
+        item.innerHTML = `
+            <div class="hist-info">
+                <div class="hist-name" title="${r.name}">${r.name}</div>
+                <div class="hist-meta">${r.area_km2} km² &middot; ${r.created_at}</div>
+            </div>
+            <a class="hist-dl" title="Download report" href="${'{% url "watershed_report:report_print" 0 %}'.replace('/0/', '/' + r.id + '/')}#print" target="_blank">&#128438;</a>
+            <button class="hist-del" title="Delete" data-id="${r.id}">&#10005;</button>
+        `;
+        // Load report on click (but not on delete/download buttons)
+        item.addEventListener('click', (e) => {
+            if (e.target.classList.contains('hist-del') || e.target.classList.contains('hist-dl')) return;
+            loadReport(r.id);
+        });
+        item.querySelector('.hist-del').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteReport(r.id, item);
+        });
+        list.appendChild(item);
+    });
+}
+
+function loadReport(id) {
+    setStatus('Loading saved report…');
+    fetch(`{% url 'watershed_report:report_detail' 0 %}`.replace('/0/', `/${id}/`))
+        .then(r => r.json())
+        .then(data => {
+            setStatus('');
+            previewGeom(data.geometry);
+            currentGeom = data.geometry;
+            currentReportId = data.id;
+            btnDownload.disabled = false;
+            document.getElementById('report-name').value = data.name.startsWith('Report #') ? '' : data.name;
+            setAnalyzeEnabled(true);
+            renderResults(data.results);
+        })
+        .catch(err => { setStatus(''); showError('Could not load report: ' + err.message); });
+}
+
+function deleteReport(id, itemEl) {
+    if (!confirm('Delete this report?')) return;
+    fetch(`{% url 'watershed_report:report_delete' 0 %}`.replace('/0/', `/${id}/`), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+    })
+    .then(r => r.json())
+    .then(data => { if (data.success) { itemEl.remove(); loadHistory(); } })
+    .catch(() => {});
+}
+
+// Load history on page load
+loadHistory();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+from all_temperature_stations import TEMPERATURE_STATIONS

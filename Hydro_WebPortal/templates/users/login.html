@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Hydro WebPortal</title>
+    {% load static %}
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
+
+        /* ── Blurred background ── */
+        .bg-page { position: fixed; inset: -20px; filter: blur(7px); transform: scale(1.04); pointer-events: none; user-select: none; z-index: 0; }
+        .bg-navbar { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); padding: 18px 40px; display: flex; justify-content: space-between; align-items: center; }
+        .bg-navbar-brand { color: #fff; font-size: 1.4rem; font-weight: 600; }
+        .bg-navbar-links { display: flex; gap: 28px; }
+        .bg-navbar-links span { color: #fff; font-size: 0.95rem; opacity: 0.85; }
+        .bg-navbar-btn { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; }
+        .bg-hero { background: url('{% static "images/hero-dam.jpg" %}') no-repeat center center / cover; min-height: 400px; display: flex; align-items: center; justify-content: flex-end; padding: 60px 80px; position: relative; }
+        .bg-hero::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.25); }
+        .bg-hero-text { position: relative; z-index: 1; color: #fff; max-width: 400px; }
+        .bg-hero-text h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+        .bg-hero-text p  { font-size: 1.1rem; opacity: 0.9; }
+        .bg-wave svg { display: block; width: 100%; height: 50px; fill: #f8f9fa; }
+        .bg-features { background: #f8f9fa; padding: 40px 60px; display: flex; justify-content: center; gap: 24px; }
+        .bg-card { background: #fff; border-radius: 16px; padding: 28px 24px; width: 260px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
+
+        /* ── Overlay ── */
+        .overlay { position: fixed; inset: 0; background: rgba(10,15,30,0.55); backdrop-filter: blur(2px); z-index: 1; }
+
+        /* ── Centering wrapper ── */
+        .modal-wrapper { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 2; padding: 20px; }
+
+        /* ── Glass card ── */
+        .glass-card {
+            background: rgba(255,255,255,0.10);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 24px;
+            padding: 48px 44px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.15);
+            animation: cardIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+            position: relative;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: scale(0.88) translateY(20px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+
+        /* ── Close ── */
+        .card-close { position: absolute; top: 18px; right: 20px; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 1.15rem; line-height: 1; padding: 4px; transition: color 0.2s; }
+        .card-close:hover { color: #fff; }
+
+        /* ── Icon ring ── */
+        .icon-ring { width: 80px; height: 80px; border-radius: 50%; background: rgba(52,152,219,0.18); border: 2px solid rgba(52,152,219,0.50); display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; box-shadow: 0 0 24px rgba(52,152,219,0.20); }
+        .icon-ring i { font-size: 2rem; color: #3498db; }
+
+        /* ── Heading ── */
+        .glass-card h2 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 6px; text-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+        .card-sub { color: rgba(255,255,255,0.58); font-size: 0.88rem; margin-bottom: 28px; }
+
+        /* ── Alerts ── */
+        .alert-glass { border-radius: 10px; font-size: 0.85rem; padding: 10px 14px; margin-bottom: 16px; text-align: left; }
+        .alert-glass.success { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.35); color: rgba(255,255,255,0.85); }
+        .alert-glass.danger  { background: rgba(231,76,60,0.15);  border: 1px solid rgba(231,76,60,0.35);  color: #f99; }
+
+        /* ── Form ── */
+        .form-body { text-align: left; }
+        .f-group { margin-bottom: 16px; }
+        .f-label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.68); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+        /* Style Django widget classes */
+        .form-input, .form-control {
+            width: 100%;
+            background: rgba(255,255,255,0.08) !important;
+            border: 1px solid rgba(255,255,255,0.20) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            font-size: 0.9rem;
+            padding: 11px 14px;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+            -webkit-appearance: none;
+            box-shadow: none !important;
+            font-family: inherit;
+        }
+        .form-input::placeholder, .form-control::placeholder { color: rgba(255,255,255,0.35) !important; }
+        .form-input:focus, .form-control:focus { border-color: rgba(52,152,219,0.70) !important; background: rgba(255,255,255,0.12) !important; }
+        .form-input.is-invalid, .form-control.is-invalid { border-color: #e74c3c !important; }
+
+        /* password wrapper */
+        .pw-wrap { position: relative; }
+        .pw-wrap .form-input, .pw-wrap .form-control { padding-right: 42px; }
+        .pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.40); font-size: 0.9rem; padding: 0; transition: color 0.2s; }
+        .pw-toggle:hover { color: rgba(255,255,255,0.80); }
+
+        /* field error */
+        .f-error { color: #e74c3c; font-size: 0.78rem; margin-top: 3px; }
+        .f-error ul { margin: 0; padding: 0; list-style: none; }
+
+        /* remember me */
+        .remember-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .remember-row input[type="checkbox"] { accent-color: #3498db; width: 15px; height: 15px; cursor: pointer; }
+        .remember-row label { color: rgba(255,255,255,0.62); font-size: 0.85rem; cursor: pointer; }
+
+        /* submit */
+        .btn-submit { width: 100%; background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; border: none; border-radius: 30px; padding: 13px; font-size: 0.95rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(52,152,219,0.35); transition: opacity 0.2s, transform 0.2s; margin-top: 4px; }
+        .btn-submit:hover { opacity: 0.90; transform: translateY(-1px); }
+        .btn-submit:active { transform: translateY(0); }
+
+        /* footer links */
+        .card-link-row { text-align: center; margin-top: 16px; font-size: 0.83rem; color: rgba(255,255,255,0.48); }
+        .card-link-row a { color: #4fc3f7; text-decoration: none; }
+        .card-link-row a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<!-- ① Blurred background replica -->
+<div class="bg-page" aria-hidden="true">
+    <div class="bg-navbar">
+        <span class="bg-navbar-brand">Antarikchya Hydropower Portal</span>
+        <div class="bg-navbar-links"><span>Home</span><span>Watershed Delineation</span><span>My Stations</span></div>
+        <button class="bg-navbar-btn">Sign In</button>
+    </div>
+    <div class="bg-hero">
+        <div class="bg-hero-text">
+            <h1>Nepal Hydropower</h1>
+            <p>Accurate watershed analysis for the hydrogeology sector.</p>
+        </div>
+    </div>
+    <div class="bg-wave">
+        <svg viewBox="0 0 1200 60" preserveAspectRatio="none">
+            <path d="M985.66,46.42C906.67,36,823.78,15.5,743.84,7.1c-82.26-8.67-168.06-8.17-250.45.19-57.84,5.87-114,15.54-172,20.93A600.21,600.21,0,0,1,0,13.68V60H1200V47.9C1132.19,59.46,1055.71,55.66,985.66,46.42Z"/>
+        </svg>
+    </div>
+    <div class="bg-features">
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Watershed Delineation</h3></div>
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Discharge Prediction</h3></div>
+        <div class="bg-card"><h3 style="color:#2c3e50;font-size:1rem;">Watershed Reports</h3></div>
+    </div>
+</div>
+
+<!-- ② Dark overlay -->
+<div class="overlay"></div>
+
+<!-- ③ Glass card -->
+<div class="modal-wrapper">
+    <div class="glass-card">
+
+        <button class="card-close" onclick="window.location.href='{% url 'home' %}'" aria-label="Back to home">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="icon-ring"><i class="fas fa-key"></i></div>
+
+        <h2>Sign In</h2>
+        <p class="card-sub">Access your Hydro Portal account</p>
+
+        <div class="form-body">
+
+            {% if logged_out %}
+            <div class="alert-glass success">
+                <i class="fas fa-check-circle" style="margin-right:6px;"></i>You have been successfully logged out.
+            </div>
+            {% endif %}
+
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert-glass {% if 'error' in message.tags or 'danger' in message.tags %}danger{% else %}success{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" action="{% url 'users:login' %}" class="login-form" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="alert-glass danger">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.username.id_for_label }}">Email Address</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                    <div class="f-error">{{ form.username.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="f-group">
+                    <label class="f-label" for="{{ form.password.id_for_label }}">Password</label>
+                    <div class="pw-wrap">
+                        {{ form.password }}
+                        <button type="button" class="pw-toggle" tabindex="-1" aria-label="Toggle password visibility">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                    <div class="f-error">{{ form.password.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="remember-row">
+                    <input type="checkbox" id="remember" name="remember">
+                    <label for="remember">Remember me</label>
+                </div>
+
+                <button type="submit" class="btn-submit">Sign In</button>
+            </form>
+
+        </div>
+
+        <div class="card-link-row">
+            <a href="{% url 'users:password_reset' %}">Forgot password?</a>
+        </div>
+        <div class="card-link-row" style="margin-top:8px;">
+            New here? <a href="{% url 'users:register' %}">Request full access</a>
+            &nbsp;·&nbsp; <a href="{% url 'users:register_free' %}">Create free account</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Show/hide password toggle
+    const toggleBtn = document.querySelector('.pw-toggle');
+    const pwdInput  = document.querySelector('[name="password"]');
+    if (toggleBtn && pwdInput) {
+        toggleBtn.addEventListener('click', function () {
+            const isText = pwdInput.type === 'text';
+            pwdInput.type = isText ? 'password' : 'text';
+            this.querySelector('i').className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    }
+
+    // Client-side validation
+    const form = document.querySelector('.login-form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            let valid = true;
+            form.querySelectorAll('.client-error').forEach(el => el.remove());
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+            const usernameInput = document.querySelector('[name="username"]');
+            const passwordInput = document.querySelector('[name="password"]');
+
+            if (usernameInput && !usernameInput.value.trim()) {
+                showError(usernameInput, 'Email is required'); valid = false;
+            } else if (usernameInput && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameInput.value.trim())) {
+                showError(usernameInput, 'Enter a valid email address'); valid = false;
+            }
+            if (passwordInput && !passwordInput.value) {
+                showError(passwordInput, 'Password is required'); valid = false;
+            }
+            if (!valid) e.preventDefault();
+        });
+    }
+
+    function showError(input, message) {
+        input.classList.add('is-invalid');
+        const span = document.createElement('span');
+        span.className = 'f-error client-error';
+        span.textContent = message;
+        const group = input.closest('.f-group');
+        if (group) group.appendChild(span);
+    }
+
+    document.querySelectorAll('.form-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+            const group = this.closest('.f-group');
+            if (group) group.querySelectorAll('.client-error').forEach(el => el.remove());
+        });
+    });
+});
+</script>
+</body>
+</html>

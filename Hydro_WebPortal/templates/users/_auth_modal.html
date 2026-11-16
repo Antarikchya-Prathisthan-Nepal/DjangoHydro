@@ -1,0 +1,243 @@
+{% comment %}
+Reusable auth-gate modal.
+Include with: {% include 'users/_auth_modal.html' %}
+
+Requires on the page:
+  - window.CSRF_TOKEN (set by the host template)
+
+Exposes globally:
+  - window.showAuthModal(onSuccessCallback, nextUrl)
+{% endcomment %}
+
+<!-- Font Awesome (loaded here in case the host page doesn't include it) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+  @keyframes ag-cardIn {
+    from { opacity: 0; transform: scale(0.88) translateY(20px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
+  }
+  #auth-gate-modal {
+    position: fixed; inset: 0; z-index: 99999;
+    background: rgba(10,15,30,0.60);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  .ag-card {
+    background: rgba(255,255,255,0.10);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 24px;
+    padding: 40px 36px 32px;
+    width: min(440px, 95vw);
+    position: relative;
+    color: #e0e8f0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+    animation: ag-cardIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .ag-close {
+    position: absolute; top: 16px; right: 18px;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.40); font-size: 1.05rem; line-height: 1; padding: 4px;
+    transition: color 0.2s;
+  }
+  .ag-close:hover { color: #fff; }
+  .ag-icon-ring {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: rgba(52,152,219,0.16);
+    border: 2px solid rgba(52,152,219,0.45);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+    box-shadow: 0 0 20px rgba(52,152,219,0.18);
+  }
+  .ag-icon-ring i { font-size: 1.7rem; color: #3498db; }
+  .ag-header { text-align: center; margin-bottom: 24px; }
+  .ag-header h5 { margin: 0 0 5px; font-size: 1.25rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+  .ag-header p  { margin: 0; font-size: 0.83rem; color: rgba(255,255,255,0.52); line-height: 1.45; }
+  .ag-tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+  .ag-tab {
+    flex: 1; padding: 8px 6px; border-radius: 10px; font-size: 0.83rem; font-weight: 600;
+    cursor: pointer; border: 1px solid rgba(255,255,255,0.20);
+    background: transparent; color: rgba(255,255,255,0.50);
+    transition: background 0.18s, color 0.18s, border-color 0.18s;
+  }
+  .ag-tab.ag-active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: #fff; border-color: transparent;
+    box-shadow: 0 3px 10px rgba(52,152,219,0.30);
+  }
+  .ag-error {
+    display: none;
+    background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.35);
+    border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; color: #f99;
+    margin-bottom: 14px;
+  }
+  .ag-input-group { margin-bottom: 13px; }
+  .ag-input {
+    width: 100%; box-sizing: border-box;
+    padding: 10px 13px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.20);
+    background: rgba(255,255,255,0.08);
+    color: #fff; font-size: 0.88rem; outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: inherit;
+  }
+  .ag-input::placeholder { color: rgba(255,255,255,0.33); }
+  .ag-input:focus { border-color: rgba(52,152,219,0.65); background: rgba(255,255,255,0.12); }
+  .ag-submit {
+    width: 100%; padding: 11px; border: none; border-radius: 30px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: #fff; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(52,152,219,0.35);
+    transition: opacity 0.2s, transform 0.15s;
+    margin-top: 4px;
+  }
+  .ag-submit:hover  { opacity: 0.90; transform: translateY(-1px); }
+  .ag-submit:active { transform: translateY(0); }
+  .ag-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+  .ag-link-row { text-align: center; margin-top: 13px; font-size: 0.79rem; color: rgba(255,255,255,0.42); }
+  .ag-link-row a, .ag-link-row button { color: #4fc3f7; text-decoration: none; background: none; border: none; cursor: pointer; font-size: 0.79rem; padding: 0; }
+  .ag-link-row a:hover, .ag-link-row button:hover { text-decoration: underline; }
+
+</style>
+
+<!-- ────────────────── Auth-gate modal ────────────────── -->
+<div id="auth-gate-modal"
+     role="dialog" aria-modal="true" aria-labelledby="auth-modal-title"
+     style="display:none;">
+  <div class="ag-card">
+
+    <button class="ag-close" onclick="window._authModalCancel()" aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <div class="ag-header">
+      <div class="ag-icon-ring"><i class="fas fa-lock"></i></div>
+      <h5 id="auth-modal-title">Sign in to download</h5>
+      <p>Free accounts can download delineation files and watershed reports.</p>
+    </div>
+
+    <!-- Tab buttons -->
+    <div class="ag-tabs">
+      <button id="auth-tab-login"    class="ag-tab ag-active" onclick="window._authModalTab('login')">
+        <i class="fas fa-sign-in-alt" style="margin-right:5px;"></i>Sign in
+      </button>
+      <button id="auth-tab-register" class="ag-tab"           onclick="window.location.href=document.getElementById('auth-register-link').href">
+        <i class="fas fa-user-plus"  style="margin-right:5px;"></i>Create free account
+      </button>
+    </div>
+
+    <!-- Login panel -->
+    <div id="auth-panel-login">
+      <div id="auth-modal-error" class="ag-error"></div>
+      <form id="auth-modal-login-form" onsubmit="window._authModalSubmit(event)" novalidate>
+        {% csrf_token %}
+        <div class="ag-input-group">
+          <input id="auth-modal-email" class="ag-input" type="email" name="email" required
+                 placeholder="Email address" autocomplete="email">
+        </div>
+        <div class="ag-input-group">
+          <input id="auth-modal-password" class="ag-input" type="password" name="password" required
+                 placeholder="Password" autocomplete="current-password">
+        </div>
+        <button type="submit" id="auth-modal-submit-btn" class="ag-submit">
+          <i class="fas fa-download" style="margin-right:6px;"></i>Sign in &amp; download
+        </button>
+      </form>
+      <div class="ag-link-row">
+        Forgot password? <a href="{% url 'users:password_reset' %}">Reset it here</a>
+      </div>
+    </div>
+
+    <!-- Hidden anchor used by showAuthModal to inject ?next= into the register URL -->
+    <a id="auth-register-link" href="{% url 'users:register_free' %}" style="display:none;"></a>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  // Callback to run after a successful login
+  let _onSuccess = null;
+
+  // Open the modal and store the callback
+  window.showAuthModal = function (onSuccessCallback, nextUrl) {
+    _onSuccess = onSuccessCallback || null;
+    // Update register link with ?next= so we return here after email verification
+    if (nextUrl) {
+      document.getElementById('auth-register-link').href =
+        '{% url "users:register_free" %}?next=' + encodeURIComponent(nextUrl);
+    }
+    const modal = document.getElementById('auth-gate-modal');
+    modal.style.display = 'flex';
+    // Reset form state
+    document.getElementById('auth-modal-email').value    = '';
+    document.getElementById('auth-modal-password').value = '';
+    document.getElementById('auth-modal-error').style.display = 'none';
+    window._authModalTab('login');
+    setTimeout(() => document.getElementById('auth-modal-email').focus(), 80);
+  };
+
+  window._authModalCancel = function () {
+    document.getElementById('auth-gate-modal').style.display = 'none';
+    _onSuccess = null;
+  };
+
+  window._authModalTab = function (tab) {
+    document.getElementById('auth-panel-login').style.display = '';
+    const btnL = document.getElementById('auth-tab-login');
+    const btnR = document.getElementById('auth-tab-register');
+    [btnL, btnR].forEach(b => b.classList.remove('ag-active'));
+    btnL.classList.add('ag-active');
+  };
+
+  window._authModalSubmit = async function (e) {
+    e.preventDefault();
+    const email    = document.getElementById('auth-modal-email').value.trim();
+    const password = document.getElementById('auth-modal-password').value;
+    const errorEl  = document.getElementById('auth-modal-error');
+    const btn      = document.getElementById('auth-modal-submit-btn');
+
+    errorEl.style.display = 'none';
+    btn.disabled  = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Signing in\u2026';
+
+    try {
+      const resp = await fetch('{% url "users:ajax_login" %}', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json',
+                   'X-CSRFToken': window.CSRF_TOKEN },
+        body:    JSON.stringify({ email, password }),
+      });
+      const data = await resp.json();
+
+      if (data.success) {
+        // Refresh CSRF token from cookie (Django may have rotated it on login)
+        const newCsrf = document.cookie.match(/csrftoken=([^;]+)/);
+        if (newCsrf) window.CSRF_TOKEN = newCsrf[1];
+
+        document.getElementById('auth-gate-modal').style.display = 'none';
+        if (_onSuccess) { const cb = _onSuccess; _onSuccess = null; cb(data); }
+      } else {
+        errorEl.textContent    = data.error || 'Login failed.';
+        errorEl.style.display  = '';
+        btn.disabled   = false;
+        btn.innerHTML = '<i class="fas fa-download" style="margin-right:6px;"></i>Sign in &amp; download';
+      }
+    } catch (_) {
+      errorEl.textContent   = 'Network error. Please try again.';
+      errorEl.style.display = '';
+      btn.disabled  = false;
+      btn.innerHTML = '<i class="fas fa-download" style="margin-right:6px;"></i>Sign in &amp; download';
+    }
+  };
+
+  // Close modal on backdrop click
+  document.getElementById('auth-gate-modal').addEventListener('click', function (e) {
+    if (e.target === this) window._authModalCancel();
+  });
+})();
+</script>

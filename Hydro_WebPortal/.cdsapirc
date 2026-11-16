@@ -1,0 +1,11 @@
+url: https://cds.climate.copernicus.eu/api
+key: 71b4bad0-abaa-4552-9e59-233b50f1983b:d08a5708-8a62-486d-8922-b45a6360a6ba
+verify: 1
+
+# Instructions:
+# 1. Go to https://cds.climate.copernicus.eu/
+# 2. Create an account and verify your email
+# 3. Go to your profile: https://cds.climate.copernicus.eu/user/
+# 4. Copy your API key from the API key section
+# 5. Replace "YOUR_CDS_API_KEY_HERE" with your actual API key
+# 6. Format should be: key: 12345:abcdef12-3456-7890-abcd-ef1234567890

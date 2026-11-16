@@ -1,0 +1,160 @@
+station_name,station_id,identifier,province,district,station_type,rh1h_series_id
+AWS_Budiaam,5614,10005614,,,,32076
+AWS_at_Parsia,516,10000516,Sudurpashchim,Kanchanpur,Rainfall station,29598
+Aiselukhark,276,10000276,,KHOTANG,,11726
+Anp_Chour,736,10000736,Lumbini province,Gulmi,AWS,27234
+Baglung,682,10000682,, Baglung ,Climate,8050
+Bahrabise,365,10000365,,Sindhupalchok,climate,28809
+Baitadi_Gothalapani,496,10000496,Sudur Pashchimanchal province,Baitadi,Climate,30112
+Bajura,927,10000927,,Bajura,,14471
+Baksila,5524,10005524,,Khotang,AWS,28074
+Baliya,562,10000562,Sudurpaschim,Kailali,Precipitation,26929
+Bandipur,762,10000762,,Tanahu,,9583
+Beding_Snow,5602,10005602,,,,31205
+Barpak,846,10000846,,Gorkha,Precipitation,26991
+Beni_Bazar,686,10000686,,,,27589
+Besishahar,800,10000800,Gandaki,Lamjung,AWS,27562
+Bhagwanpur,728,10000728,Lumbini province,Kapilvastu,Precipitation ,26945
+Bhairahawa_Agric,714,10000714,Lumbini province,Rupandehi,Agromet,9518
+Bhairahawa_AWOS_10,4670,10004670,Lumbini province,Rupandehi,,14546
+Bharatpur_Airport,903,10000903,Bagmati,Chitwan,,6686
+Bhairahawa_AWOS_28,4671,10004671,Lumbini province,Rupandehi,,14638
+Bhojpur,293,10000293,,Bhojpur,AWS,7188
+Bhujung,797,10000797,Gandaki,Lamjung,Precipitation,31578
+Bijuwatar,934,10000934,,Pyuthan,,9936
+Biratnagar_Airport,288,10000288,Koshi province,Morang,Aero-synoptic,6123
+Birganj,321,10000321,Madhesh pradesh,Parsa,CLIMATE,27300
+Bobang,691,10000691,,Baglung,Precipitation,31996
+Bolde,5547,10005547,Bagmati,Sindhupalchok,,28980
+Chainpur_East,461,10000461,Koshi province,Sankhuwasabha,Climate Station,31363
+Chame,769,10000769,,Manang,,27616
+Chandragadi_Airport,907,10000907,Koshi province,Jhapa,Aerosynoptic,6024
+Chandragiri,5518,10005518,,,Automatic Weather Station (TPB and RHT sensor),27806
+Chapakot,764,10000764,,Syangja,Climate,31545
+Chatara,471,10000471,Koshi province,Sunsari,climate,31446
+Dadeldhura_AWS,914,10000914,Sudurpashchim,Dadeldhura,,8106
+Daman,310,10000310,,Makwanpur,,8838
+Dailekh_AWS,1957,10001957,Karnali province,DAILEKH,Climate,12003
+Damauli,770,10000770,,Tanahun,Climate,26909
+Darchula_New,520,10000520,Sudurpashchim,Darchula,Climatology,7681
+Daulatpur,5481,10005481,Lumbini,Bardiya,,26965
+Dedh_Gaun,868,10000868,,Nawalpur,Precipitation,31840
+Dhangadhi_airport,947,10000947,Sudurpashchim,Kailali,Precipitation,7528
+Dharan_Bazar,290,10000290,Koshi,Sunsari,Climate station+AWS,7244
+Dhankuta,465,10000465,Koshi province,Dhankuta,Synoptic,10388
+Dhulikhel,362,10000362,Bagmati,Kavrepalanchowk,Climate,28789
+Dhunibesi,924,10000924,Bagmati,Dhading,Climate,8466
+Dipayal_Doti,538,10000538,Sudurpashchim,Doti,AWS/Manual,9043
+Dodhara,515,10000515,Sudurpashchim,Kanchanpur,Rainfall station,26709
+Dumkauli,713,10000713,Gandaki,Nawalparasi East,Climate,26897
+Dunai,576,10000576,Karnali province,Dolpa,Climate,30666
+Gaira,920,10000920,Sudurpashchim,Doti,AWS,10064
+Gamadi_Shree_Nagar,570,10000570,Karnali province,Mugu,Climate,29860
+Gaur,325,10000325,,Rautahat,Climate,27281
+Ghap_AWS,5592,10005592,,,AWS,30355
+Ghorepani,693,10000693,,Myagdi,Precipitation ,10128
+Ghorai_Dang,652,10000652,Lumbini province,Dang,Synoptic,7603
+Gobre,5548,10005548,Bagmati,Sindhupalchok,,28939
+Godavari,360,10000360,,Lalitpur,Climate,28753
+Gokuleshwar,519,10000519,Sudurpashchim,Darchula,Climatology,30639
+Gorkha_Agromet,1956,10001956,Gandaki,Gorkha,Agromet,11937
+Gothi,581,10000581,Karnali province,Humla,Precipitation,30847
+Gulariya,606,10000606,Lumbini province,Bardiya ,climate,8162
+Gurjakhani,4668,10004668,Gandaki,Myagdi,,14510
+Gumthang_AWS,939,10000939,,Sindhupalchok,,9711
+Hardinath,432,10000432,Madhesh,Dhanusha,Climate,27147
+Hariharpur_Gadhi_Valley,853,10000853,,Sindhuli,Precipitation,28826
+Humde_Airport,4672,10004672,Gandaki,Manang,,14677
+Hetauda_NFI,311,10000311,Bagmati,Makwanpur,Climate,9375
+Ilam_Tea_Estate,484,10000484,Koshi province,Ilam,M+A,9240
+Jajarkot_AWS,931,10000931,Karnali province,JAJARKOT,,10192
+Jaleshore,899,10000899,,Mahottari,AWS,8545
+Janakpur_Airport,429,10000429,Madhesh,Dhanusha,Aero-Synoptic,6731
+Jiri,421,10000421,,Dolakha,Agro-Met.,6897
+Jomsom_Airport,4674,10004674,Gandaki,Mustang,,14761
+Jumla_Airport,598,10000598,,Jumla,Climate/AWS,12449
+Juphal_Airport,596,10000596,Karnali province,Dolpa,Precipitation,16692
+Jyamirkhali,5571,10005571,,,AWS (TB4 + HC2A-S3),29775
+Kakani,345,10000345,,Nuwakot,Climate,11393
+Kallagoth_Krishnapur,514,10000514,Sudurpashchim, Kanchanpur,Rainfall station,29679
+Kanyam_Tea_Estate,490,10000490,Koshi province,Ilam,CLM,7300
+Karmaiya,439,10000439,Madhesh,Sarlahi,Climate,8894
+Kankai,893,10000893,province No.1,Jhapa,AGROMET +AWS,6200
+Katari,4821,10004821,,Udayapur,AWS,27167
+Kathmandu_AWOS_20,4667,10004667,Bagmati province,Kathmandu,Aero-synoptic,14432
+Khanchikot,722,10000722,Lumbini province,Arghakhachi,Agromet,8218
+Khajura_Nepalganj,607,10000607,Lumbini province,Banke ,Agromet,7760
+Khudi_Bazar,756,10000756,,Lamjung,Climate,8272
+Khumaltar,367,10000367,,Lalitpur,Agro-met,9121
+Kirtipur,280,10000280,Bagmati province,Kathmandu,Radiosonde,5803
+Kurle_Ghat,448,10000448,,,,31413
+Kushma,690,10000690,Gandaki,Parbat,Climate,27010
+Lahan,452,10000452,Madhesh,Siraha,,8624
+Lamidanda,5523,10005523,,,,28099
+Lete,4871,10004871,Gandaki,Mustang,,20789
+Liwang,933,10000933,,Rolpa,,10000
+Lukla_Airport,4669,10004669,Koshi province,Solukhumbhu,Aero-Synoptic,14606
+Lukla_Valley,944,10000944,,,,12582
+Lumle,767,10000767,Gandaki,Kaski,Agromet,7838
+Lungthung,480,10000480,Koshi province,Taplejung,Precipitation(Manual),31479
+Mane_Bhanjyang,855,10000855,Koshi,Okhaldhunga,AWS,28049
+Mangalsen_AWS,919,10000919,Sudurpashchim,Achham,AWS,9439
+Manma_AWS,1955,10001955,,Kalikot,,11857
+Manthali_Airport,940,10000940,Bagmati,Ramechhap,,11419
+Manusmara,436,10000436,,Sarlahi ,AWS,27186
+MelamchiGhyang,5551,10005551,Bagmati,Sindhupalchok,,28907
+Muna,702,10000702,,Myagdi,Precipitation,31825
+Musikot_RukumWest,651,10000651,Karnali province,Rukum West,Climate ,9791
+Nagarkot_AWS,286,10000286,Bagmati,Bhaktapur,,7412
+Nagma,572,10000572,Karnali province,KALIKOT,Climate,29964
+Namrung,792,10000792,,Manang,,31702
+Nile_Tsum_Valley,5591,10005591,,,AWS,30326
+Nepalgunj_airport,915,10000915,Lumbini,Banke,,5844
+Noshyampati,5603,10005603,,,,31267
+Num,460,10000460,Koshi province,Sankhuwasabha,हावापानी,11594
+Nurpugaun,5604,10005604,,,,31294
+Nuwakot,342,10000342,,Nuwakot,Climate,9647
+NyakEkle_Bhatti,5590,10005590,,,AWS,30296
+Okhaldhunga,446,10000446,Koshi,Okhaldhunga,M+A,10429
+Olangchunggola,4673,10004673,,Taplejung,AWS,14716
+Oli_Gaun_Patkani,539,10000539,Sudurpashchim,Achham,Climate,29887
+Pakhribas,462,10000462,Koshi province,Dhankuta,Agromet,6975
+Panchamukhi_Snow,5613,10005613,,,,32029
+Panchase,821,10000821,,Parbat,Climate,29938
+Panchkhal,373,10000373,,Kavrepalanchowk,Climate,7053
+Pangboche_Snow,5606,10005606,,,,31880
+Panipokhari,376,10000376,,Kathmandu,Climate,28773
+Parwanipur,315,10000315,Madhesh Pradesh,Bara,AGROMET,8703
+Phidim_Panchther,491,10000491,Koshi,Panchthar,M+A,7468
+Pokhara_AWOS_04,281,10000281,Gandaki,Kaski,,6363
+Pokhara_AWOS_22,303,10000303,,Kaski,,6322
+Rajbiraj_Airport,926,10000926,Madhesh,Saptari,A,9871
+Rampur_AWS,904,10000904,Bagmati,Chitwan,Agro-met,8782
+Rani_Jaruwa_Nursery,84,10000084,Lumbini province,Bardiya,Climatic Station,27101
+Salleri_Phaplu,943,10000943,Koshi,Solukhumbu,AWS,11514
+Salyan_Bazaar_AWS,930,10000930,,Salyan,,10256
+Samagaon,5600,10005600,,,AWS,30769
+Sandhikharka,754,10000754,Lumbini province,Arghakhachi ,AWS,26868
+Shyano_Shree_Chepang,923,10000923,,Bardiya,,11661
+Sikta,851,10000851,Lumbini province,Banke,Climate,26976
+Simara_Airport_AWS,905,10000905,Madhesh,Bara,AEROSYNOPTIC,8389
+Simikot_Airport,597,10000597,Karnali,Humla,Automatics ,12667
+Sindhuli_Madhi,425,10000425,Bagmati,Sindhuli,Climate,8950
+Siptan_La_Pass_Snow,5621,10005621,,,,32182
+Sundarpur,912,10000912,Sudurpashchim,Kanchanpur,M+A,7917
+Surkhet_Airport_Birendranagar,604,10000604,Karnali,Surkhet,Aero-Synoptic ,10333
+Syangboche_Airport,4690,10004690,,Solukhumbu,,16208
+Syangja,889,10000889,,Syangja,Climate,6600
+Taal,794,10000794,,Manang,Precipitation,29914
+Talcha,1958,10001958,,Mugu,Manual & Automatic,12133
+Tallo_Khokseli,5525,10005525,,,,28124
+Tamghas_AWS,935,10000935,,Gulmi,,12068
+Tansen_AWS,937,10000937,,Palpa,,12215
+Taplejung,482,10000482,Koshi province,Taplejung,Synoptic,9166
+Taplethok,481,10000481,Koshi province,Taplejung,PPTM+TPB,31512
+Tarahara,474,10000474,Koshi province,Sunsari,Agro-meteorology,7132
+Taulihawa_AWS,1954,10001954,Lumbini,Kapilvastu,,11791
+Tikapur,527,10000527,Sudurpashchim,Kailali,Claimate,7996
+Thakmarpha,681,10000681,Gandaki,Mustang,Agromet,9319
+Udayapur_Gadhi,451,10000451,Koshi,Udayapur,Climate,27120
+Udaypurgadhi,921,10000921,Koshi,Udayapur,AWS,10625

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Discharge Predictions</title>
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    
+    <!-- Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom styling for user controls -->
+    <link rel="stylesheet" href="/static/css/predictions_dashboard_user.css" />
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS for logout button -->
+    <link rel="stylesheet" href="/static/css/dashboard_logout.css" />
+    <link rel="stylesheet" href="/static/css/logout_confirmation.css" />
+    
+    <!-- Custom JS for logout confirmation -->
+    <script src="/static/js/logout_confirmation.js" defer></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+        }
+        
+        .auto-refresh-indicator {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+        }
+        
+        .auto-refresh-indicator.updating {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            min-height: 600px; /* Changed from height to min-height to accommodate footer */
+        }
+        
+        .chart-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .chart-subtitle {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 0.3rem;
+        }
+        
+        .last-updated {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            margin-left: auto;
+        }
+        
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 400px;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .station-selector, .station-info, .prediction-stats {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .station-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .station-item {
+            padding: 0.8rem;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .station-item:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+        }
+        
+        .station-item.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .station-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .station-river {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 0.2rem;
+        }
+        
+        .station-item.active .station-river {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+        
+        .prediction-metric {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-bottom: 0.3rem;
+        }
+        
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 2rem;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #fcc;
+            margin: 1rem 0;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .sidebar {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            
+            .station-selector, .station-info, .prediction-stats {
+                min-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Real-time Discharge Predictions</h1>
+        <div class="subtitle">
+            Automated daily predictions with live updates
+            <div class="header-controls-wrapper">
+                <span class="auto-refresh-indicator" id="refreshIndicator">Auto-refresh: Active</span>
+                {% if user.is_authenticated %}
+                <div class="user-info">
+                    <div class="dropdown">
+                        <button class="user-logout-btn" type="button" id="userDropdown">
+                            <div class="user-icon">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span class="d-none d-md-inline user-name">{{ user.get_full_name|default:user.email }}</span>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="chart-section">
+            <div class="chart-header">
+                <div>
+                    <div class="chart-title" id="stationTitle">Select a Station</div>
+                    <div class="chart-subtitle">Predicted discharge values updated daily</div>
+                </div>
+                <div class="last-updated" id="lastUpdated">Last updated: --</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="predictionsChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="station-selector">
+                <div class="section-title">Stations</div>
+                <div class="station-list" id="stationList">
+                    <div class="loading">Loading stations...</div>
+                </div>
+            </div>
+            
+            <div class="station-info">
+                <div class="section-title">Station Details</div>
+                <div id="stationDetails">
+                    <div class="loading">Select a station to view details</div>
+                </div>
+            </div>
+            
+            <div class="prediction-stats">
+                <div class="section-title">Prediction Metrics</div>
+                <div id="predictionMetrics">
+                    <div class="loading">No data available</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let predictionsChart = null;
+        let currentStation = null;
+        let refreshInterval = null;
+        let lastUpdateTime = null;
+        
+        // Auto-refresh every 24 hours (86400000 ms), for demo purposes use 5 minutes
+        const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes for demo
+        // const REFRESH_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours for production
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStations();
+            startAutoRefresh();
+        });
+        
+        // Load available stations
+        async function loadStations() {
+            try {
+                const response = await fetch('/discharge-prediction/api/stations/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayStations(data.stations);
+                } else {
+                    document.getElementById('stationList').innerHTML = 
+                        '<div class="error">Failed to load stations</div>';
+                }
+            } catch (error) {
+                console.error('Error loading stations:', error);
+                document.getElementById('stationList').innerHTML = 
+                    '<div class="error">Error loading stations</div>';
+            }
+        }
+        
+        // Display stations list
+        function displayStations(stations) {
+            const stationList = document.getElementById('stationList');
+            stationList.innerHTML = '';
+            
+            stations.forEach(station => {
+                const stationItem = document.createElement('div');
+                stationItem.className = 'station-item';
+                stationItem.innerHTML = `
+                    <div class="station-name">${station.name}</div>
+                    <div class="station-river">${station.river_name}</div>
+                `;
+                stationItem.addEventListener('click', () => selectStation(station));
+                stationList.appendChild(stationItem);
+            });
+            
+            // Auto-select first station
+            if (stations.length > 0) {
+                selectStation(stations[0]);
+            }
+        }
+        
+        // Select a station
+        async function selectStation(station) {
+            currentStation = station;
+            
+            // Update UI
+            document.querySelectorAll('.station-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.station-item').classList.add('active');
+            
+            document.getElementById('stationTitle').textContent = 
+                `${station.name.toUpperCase()} - PREDICTIONS`;
+            
+            // Load station details and predictions
+            await loadStationDetails(station);
+            await loadPredictionData(station.station_id);
+        }
+        
+        // Load station details
+        async function loadStationDetails(station) {
+            const detailsDiv = document.getElementById('stationDetails');
+            detailsDiv.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Station ID:</span>
+                    <span class="info-value">${station.station_id}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">River:</span>
+                    <span class="info-value">${station.river_name}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Coordinates:</span>
+                    <span class="info-value">${station.coordinates ? 
+                        `${station.coordinates[0].toFixed(4)}, ${station.coordinates[1].toFixed(4)}` : 
+                        'N/A'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value">Active</span>
+                </div>
+            `;
+        }
+        
+        // Load prediction data for chart
+        async function loadPredictionData(stationId) {
+            try {
+                const refreshIndicator = document.getElementById('refreshIndicator');
+                refreshIndicator.textContent = 'Updating...';
+                refreshIndicator.classList.add('updating');
+                
+                const response = await fetch(`/discharge-prediction/api/stations/${stationId}/telemetry/?predictions_only=true`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    createPredictionsChart(data.telemetry_data);
+                    updatePredictionMetrics(data.telemetry_data.predictions);
+                    updateLastUpdatedTime();
+                } else {
+                    console.error('Error loading prediction data:', data.error);
+                    showChartError('Failed to load prediction data');
+                }
+            } catch (error) {
+                console.error('Error loading prediction data:', error);
+                showChartError('Error loading prediction data');
+            } finally {
+                const refreshIndicator = document.getElementById('refreshIndicator');
+                refreshIndicator.textContent = 'Auto-refresh: Active';
+                refreshIndicator.classList.remove('updating');
+            }
+        }
+        
+        // Create predictions-only chart
+        function createPredictionsChart(telemetryData) {
+            const ctx = document.getElementById('predictionsChart').getContext('2d');
+            
+            if (predictionsChart) {
+                predictionsChart.destroy();
+            }
+            
+            const predictionData = telemetryData.predictions || [];
+            
+            if (predictionData.length === 0) {
+                showChartError('No prediction data available');
+                return;
+            }
+            
+            predictionsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Predicted Discharge',
+                        data: predictionData.map(d => ({x: d.date, y: d.discharge})),
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#e74c3c',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const point = predictionData[context.dataIndex];
+                                    return [
+                                        `Discharge: ${context.parsed.y.toFixed(3)} m³/s`,
+                                        `Confidence: ${(point.confidence * 100).toFixed(1)}%`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Discharge (m³/s)',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+        
+        // Update prediction metrics
+        function updatePredictionMetrics(predictions) {
+            if (!predictions || predictions.length === 0) {
+                document.getElementById('predictionMetrics').innerHTML = 
+                    '<div class="loading">No prediction data</div>';
+                return;
+            }
+            
+            const dischargeValues = predictions.map(p => p.discharge);
+            const avgDischarge = dischargeValues.reduce((a, b) => a + b, 0) / dischargeValues.length;
+            const maxDischarge = Math.max(...dischargeValues);
+            const minDischarge = Math.min(...dischargeValues);
+            const avgConfidence = predictions.reduce((a, b) => a + (b.confidence || 0.9), 0) / predictions.length;
+            
+            document.getElementById('predictionMetrics').innerHTML = `
+                <div class="prediction-metric">
+                    <div class="metric-label">Avg. Predicted Discharge</div>
+                    <div class="metric-value">${avgDischarge.toFixed(3)} m³/s</div>
+                </div>
+                <div class="prediction-metric">
+                    <div class="metric-label">Max Predicted</div>
+                    <div class="metric-value">${maxDischarge.toFixed(3)} m³/s</div>
+                </div>
+                <div class="prediction-metric">
+                    <div class="metric-label">Min Predicted</div>
+                    <div class="metric-value">${minDischarge.toFixed(3)} m³/s</div>
+                </div>
+                <div class="prediction-metric">
+                    <div class="metric-label">Avg. Confidence</div>
+                    <div class="metric-value">${(avgConfidence * 100).toFixed(1)}%</div>
+                </div>
+                <div class="prediction-metric">
+                    <div class="metric-label">Prediction Days</div>
+                    <div class="metric-value">${predictions.length}</div>
+                </div>
+            `;
+        }
+        
+        // Show chart error
+        function showChartError(message) {
+            const container = document.querySelector('.chart-container');
+            container.innerHTML = `<div class="error" style="margin: 2rem; text-align: center;">${message}</div>`;
+        }
+        
+        // Update last updated time
+        function updateLastUpdatedTime() {
+            lastUpdateTime = new Date();
+            document.getElementById('lastUpdated').textContent = 
+                `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
+        }
+        
+        // Start auto-refresh
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                if (currentStation) {
+                    console.log('Auto-refreshing prediction data...');
+                    loadPredictionData(currentStation.station_id);
+                }
+            }, REFRESH_INTERVAL);
+        }
+        
+        // Stop auto-refresh (for cleanup)
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopAutoRefresh);
+    </script>
+    
+    <!-- Footer -->
+    <footer class="dashboard-footer" id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Antarikchya Hydropower Portal</h3>
+                    <p>Advanced watershed delineation portal for accurate hydrological analysis in Nepal.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/delineation/">Delineation Tool</a></li>
+                        <li><a href="/discharge-prediction/">Discharge Prediction</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>For technical support and inquiries about watershed delineation services. Mail us: antarikchya@gmail.com</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Antarikchya Hydropower Portal. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS for dropdown -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Link to footer CSS -->
+    <link rel="stylesheet" href="/static/css/dashboard_footer.css" />
+</body>
+</html>

@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Discharge Prediction Dashboard</title>
+    
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="/static/js/dashboard_enhanced.js?v=5"></script>
+    <style>
+        /* Dashboard user dropdown */
+        .dash-user-dropdown {
+            display: none; position: absolute; right: 0; top: calc(100% + 10px);
+            background: #1a2744; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px; min-width: 200px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4); list-style: none;
+            padding: 6px 0; z-index: 9999;
+        }
+        .dash-user-dropdown.dash-menu-open { display: block; }
+        .dash-user-dropdown li a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; color: #e0e6f0; text-decoration: none;
+            font-size: 0.88rem; font-weight: 500; transition: background 0.15s;
+        }
+        .dash-user-dropdown li a:hover { background: rgba(255,255,255,0.08); }
+        .dash-user-dropdown li a i { width: 16px; color: #4a90e2; }
+        .dash-menu-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+    </style>
+    <script src="/static/js/logout_confirmation.js?v=2" defer></script>
+    <script>
+        // Export functionality is handled by dashboard_enhanced.js
+    </script>
+    <link rel="stylesheet" href="/static/css/dashboard_enhanced.css?v=2" />
+    <link rel="stylesheet" href="/static/css/layout_adjustments.css?v=2" />
+    <link rel="stylesheet" href="/static/css/date_controls.css?v=2" />
+    <link rel="stylesheet" href="/static/css/equal_heights.css?v=3" />
+    <link rel="stylesheet" href="/static/css/table_adjustments.css?v=2" />
+    <link rel="stylesheet" href="/static/css/enhanced_dashboard_user.css?v=2" />
+    <link rel="stylesheet" href="/static/css/logout_confirmation.css?v=2" />
+    
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Additional styles for chart dragging and toggle switch -->
+    <style>
+        /* Date and export controls layout */
+        .date-section {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 12px;
+        }
+        
+        .date-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .export-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 5px;
+            margin-left: 5px;
+        }
+        
+        /* Export button styles */
+        .export-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .export-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            width: 100%;
+            min-width: 140px;
+        }
+        
+        .export-button:hover {
+            background: #218838;
+        }
+        
+        .export-button.excel-btn {
+            background: #2C5AA0;
+        }
+        
+        .export-button.excel-btn:hover {
+            background: #1e3f70;
+        }
+        
+        .export-button i {
+            font-size: 0.9rem;
+        }
+        
+        .chart-container {
+            cursor: default;
+            position: relative;
+        }
+
+        /* ── Navigator (Highcharts-style mini chart + draggable window) ─────── */
+        .chart-canvas-wrapper {
+            position: relative;
+            height: 320px;
+        }
+        .chart-navigator {
+            position: relative;
+            height: 56px;
+            background: #dde5ef;
+            border-top: 2px solid #b0c4d8;
+            border-bottom: 1px solid #b0c4d8;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .chart-navigator canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none;
+        }
+        .nav-mask {
+            position: absolute;
+            top: 0; height: 100%;
+            background: rgba(100, 130, 170, 0.55);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .nav-window {
+            position: absolute;
+            top: 0; height: 100%;
+            cursor: grab;
+            z-index: 2;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.30);
+            border-left:  3px solid #2e6da4;
+            border-right: 3px solid #2e6da4;
+        }
+        .nav-window:active { cursor: grabbing; }
+        .nav-handle {
+            position: absolute;
+            top: 0; height: 100%; width: 7px;
+            background: #5b8ec4;
+            cursor: ew-resize;
+            z-index: 3;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-handle::after {
+            content: '';
+            display: block;
+            width: 1px; height: 55%;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 2px 0 0 rgba(255,255,255,0.8);
+        }
+        .nav-handle.nav-handle-left  { left:  -4px; border-radius: 3px 0 0 3px; }
+        .nav-handle.nav-handle-right { right: -4px; border-radius: 0 3px 3px 0; }
+        .nav-label {
+            font-size: 0.72rem;
+            color: #5a7a9a;
+            text-align: center;
+            padding: 3px 0 4px;
+            background: #ffffff;
+            letter-spacing: 0.03em;
+            border-top: 1px solid #e0e6ee;
+            border-radius: 0 0 7px 7px;
+        }
+        
+        /* Monthly Forecast Pagination Styles */
+        .table-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px;
+            gap: 10px;
+        }
+        
+        .pagination-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .pagination-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .pagination-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+    </style>
+
+</head>
+<body>
+    <div class="header">
+        <h1>DISCHARGE PREDICTION</h1>
+        <div class="subtitle">
+            <div class="header-controls-wrapper">
+                <div class="header-controls">
+                    <span class="auto-refresh-indicator" id="refreshIndicator">Updated daily at 10:00 AM NPT</span>
+                </div>
+                {% if user.is_authenticated %}
+                <div class="user-info" style="position:relative;">
+                    <button class="user-logout-btn" type="button" id="dashUserBtn" onclick="document.getElementById('dashUserMenu').classList.toggle('dash-menu-open')" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:0;">
+                        <div class="user-icon"><i class="fas fa-user"></i></div>
+                        <span class="d-none d-md-inline user-name">{{ user.get_full_name|default:user.email }}</span>
+                        <i class="fas fa-chevron-down" style="color:rgba(255,255,255,0.7);font-size:0.65rem;"></i>
+                    </button>
+                    <ul id="dashUserMenu" class="dash-user-dropdown">
+                        <li><a href="{% url 'users:profile' %}"><i class="fas fa-id-card"></i> My Profile</a></li>
+                        {% if user.is_staff %}
+                        <li><a href="{% url 'admin:index' %}"><i class="fas fa-tools"></i> Admin Panel</a></li>
+                        {% endif %}
+                        <li class="dash-menu-divider"></li>
+                        <li><a href="{% url 'users:logout' %}" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Stations Panel -->
+    <div class="top-panel-wrapper">
+        <div class="top-panel">
+            <div class="panel-section stations-section">
+                <div class="section-title">Stations</div>
+                <div class="station-list" id="stationList">
+                    <div class="loading">Loading stations...</div>
+                </div>
+            </div>
+            
+            <div class="panel-section details-section">
+                <div class="section-title">Station Details</div>
+                <div id="stationDetails">
+                    <div class="loading">Select a station to view details</div>
+                </div>
+            </div>
+            
+            <div class="panel-section location-section">
+                <div class="section-title">Location</div>
+                <div class="map-container">
+                    <div id="map" style="height: 100%; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="charts-column">
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title" id="stationTitle">Station Discharge Predictions</div>
+                        <!-- <div class="chart-subtitle">Real-time predictions updated </div> -->
+                    </div>
+                </div>
+                
+                <!-- Weather Conditions Card -->
+                <div id="weatherConditionsSection" style="display:none; margin-bottom:14px; background:#fff; border:1px solid #dde8f5; border-radius:10px; overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#1a6fa8,#2980b9); color:#fff; padding:10px 16px; font-size:0.85rem; font-weight:600; letter-spacing:0.03em;">
+                        &#127782; Weather Conditions
+                    </div>
+                    <div style="padding:12px 16px;" id="weatherConditionsBody">
+                        <!-- populated by loadWeatherSummary() -->
+                    </div>
+                </div>
+
+                <!-- Discharge Chart Container (Graph 1) -->
+                <div class="chart-container">
+                    <h4>Predicted Discharge (m³/s)</h4>
+                    <div class="chart-canvas-wrapper">
+                        <canvas id="dischargeChart"></canvas>
+                    </div>
+                    <div class="chart-navigator" id="dischargeNavigator">
+                        <canvas id="dischargeNavCanvas"></canvas>
+                        <div class="nav-mask" id="dischargeNavMaskLeft"></div>
+                        <div class="nav-window" id="dischargeNavWindow">
+                            <div class="nav-handle nav-handle-left"  id="dischargeNavHandleLeft"></div>
+                            <div class="nav-handle nav-handle-right" id="dischargeNavHandleRight"></div>
+                        </div>
+                        <div class="nav-mask" id="dischargeNavMaskRight"></div>
+                    </div>
+                    <div class="nav-label" id="dischargeNavLabel">Drag to pan &nbsp;&bull;&nbsp; Scroll to zoom</div>
+                </div>
+
+                <!-- Energy Chart Container (Graph 2) -->
+                <div class="chart-container">
+                    <h4>Predicted Energy (MWh)</h4>
+                    <div class="chart-canvas-wrapper">
+                        <canvas id="energyChart"></canvas>
+                    </div>
+                    <div class="chart-navigator" id="energyNavigator">
+                        <canvas id="energyNavCanvas"></canvas>
+                        <div class="nav-mask" id="energyNavMaskLeft"></div>
+                        <div class="nav-window" id="energyNavWindow">
+                            <div class="nav-handle nav-handle-left"  id="energyNavHandleLeft"></div>
+                            <div class="nav-handle nav-handle-right" id="energyNavHandleRight"></div>
+                        </div>
+                        <div class="nav-mask" id="energyNavMaskRight"></div>
+                    </div>
+                    <div class="nav-label" id="energyNavLabel">Drag to pan &nbsp;&bull;&nbsp; Scroll to zoom</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Station Prediction Table -->
+        <div class="prediction-column">
+            <div class="glass-panel">
+                <div class="observations-section" id="observationsSection">
+                    <h3 class="observations-header">STATION PREDICTION</h3>
+                    
+                    <div class="date-period-controls">
+                        <div class="date-section">
+                            <div class="date-row">
+                                <div class="date-group">
+                                    <label for="startDate">Start Date:</label>
+                                    <input type="date" id="startDate" value="">
+                                </div>
+                                <div class="date-group">
+                                    <label for="endDate">End Date:</label>
+                                    <input type="date" id="endDate" value="">
+                                </div>
+                                <button class="view-button" onclick="refreshObservations()">View Data</button>
+                            </div>
+                                            <div class="export-row">
+                                <div class="export-controls">
+                                    <button class="export-button" id="exportDataBtn"><i class="fas fa-download"></i> Export CSV</button>
+                                </div>
+                                {% comment %} <div class="export-controls">
+                                    <button class="export-button excel-btn" id="exportExcelBtn" onclick="performExcelExport()"><i class="fas fa-file-excel"></i> Export Excel</button>
+                                </div> {% endcomment %}
+                            </div>
+                        </div>
+                        <!-- Hidden fallback form for direct download -->
+                        <form id="directExportForm" style="display:none;" method="get" action="/discharge-prediction/api/export-data/">
+                            <input type="hidden" name="format" value="excel">
+                            <input type="hidden" id="formStartDate" name="start_date">
+                            <input type="hidden" id="formEndDate" name="end_date">
+                        </form>
+                    </div>
+                    
+                    <div class="water-level-section">
+                        <div class="water-level-header">
+                            Discharge Forecast
+                        </div>
+                        <div class="water-level-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Discharge (m³/s)</th>
+                                        <th>Energy (MWh)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="observationsTableBody">
+                                    <tr>
+                                        <td colspan="3" class="loading">Loading predictions data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Monthly Energy Forecast Section -->
+                    <div class="water-level-section monthly-forecast-section">
+                        <div class="water-level-header">
+                            Monthly Energy Forecast
+                        </div>
+                        <div class="water-level-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th>Avg Discharge (m³/s)</th>
+                                        <th>Monthly Energy (MWh)</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthlyForecastTableBody">
+                                    <tr>
+                                        <td colspan="4" class="loading">Loading monthly forecast data...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="monthlyPaginationContainer" class="table-pagination" style="visibility:hidden; min-height:40px;"></div>
+                    </div>
+
+                    <!-- Energy Calculator Section -->
+                    <div class="water-level-section" id="energyCalculatorSection">
+                        <div class="water-level-header">
+                            &#9889; Energy Forecast Calculator
+                        </div>
+                        <div style="padding: 14px 16px 6px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                                <div>
+                                    <label style="font-size:0.78rem;color:#5a7a9a;display:block;margin-bottom:3px;">Start Date</label>
+                                    <input type="date" id="calcStartDate"
+                                           style="width:100%;padding:6px 8px;border:1px solid #d0dbe8;border-radius:5px;font-size:0.85rem;background:#f8fafd;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.78rem;color:#5a7a9a;display:block;margin-bottom:3px;">End Date</label>
+                                    <input type="date" id="calcEndDate"
+                                           style="width:100%;padding:6px 8px;border:1px solid #d0dbe8;border-radius:5px;font-size:0.85rem;background:#f8fafd;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.78rem;color:#5a7a9a;display:block;margin-bottom:3px;">Average Net Head (m) Over The Turbine</label>
+                                    <input type="number" id="calcNetHead" min="1" step="0.1" placeholder="Station default"
+                                           style="width:100%;padding:6px 8px;border:1px solid #d0dbe8;border-radius:5px;font-size:0.85rem;background:#f8fafd;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.78rem;color:#5a7a9a;display:block;margin-bottom:3px;">Plant Factor (%)</label>
+                                    <input type="number" id="calcOperatingHours" min="0.1" max="100" step="1" value="100"
+                                           style="width:100%;padding:6px 8px;border:1px solid #d0dbe8;border-radius:5px;font-size:0.85rem;background:#f8fafd;">
+                                </div>
+                            </div>
+                            <button id="calcRunBtn" onclick="runEnergyCalculator()"
+                                    style="width:100%;padding:8px;background:#2980b9;color:#fff;border:none;border-radius:5px;font-size:0.88rem;font-weight:600;cursor:pointer;">
+                                Calculate Energy Forecast
+                            </button>
+                        </div>
+
+                        <!-- Result card — hidden until calculation runs -->
+                        <div id="calcResultCard" style="display:none; margin:0 16px 14px; padding:14px; background:#f0f6ff; border-radius:7px; border:1px solid #c8ddf2;">
+                            <div style="font-size:0.78rem;color:#5a7a9a;margin-bottom:8px;" id="calcResultPeriod"></div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                                <div style="background:#fff;border-radius:6px;padding:10px;text-align:center;border:1px solid #dde8f5;">
+                                    <div style="font-size:0.72rem;color:#7a95b0;margin-bottom:2px;">Avg Discharge</div>
+                                    <div style="font-size:1.15rem;font-weight:700;color:#2c5f8a;" id="calcAvgDischarge">—</div>
+                                    <div style="font-size:0.68rem;color:#9ab0c4;">m³/s</div>
+                                </div>
+                                <div style="background:#fff;border-radius:6px;padding:10px;text-align:center;border:1px solid #dde8f5;">
+                                    <div style="font-size:0.72rem;color:#7a95b0;margin-bottom:2px;">Avg Power</div>
+                                    <div style="font-size:1.15rem;font-weight:700;color:#2c5f8a;" id="calcAvgPower">—</div>
+                                    <div style="font-size:0.68rem;color:#9ab0c4;">MW</div>
+                                </div>
+                                <div style="background:#fff;border-radius:6px;padding:10px;text-align:center;border:1px solid #dde8f5;">
+                                    <div style="font-size:0.72rem;color:#7a95b0;margin-bottom:2px;">Daily Energy</div>
+                                    <div style="font-size:1.15rem;font-weight:700;color:#508d8a;" id="calcDailyEnergy">—</div>
+                                    <div style="font-size:0.68rem;color:#9ab0c4;">MWh/day</div>
+                                </div>
+                                <div style="background:#fff;border-radius:6px;padding:10px;text-align:center;border:1px solid #c8ddf2;">
+                                    <div style="font-size:0.72rem;color:#7a95b0;margin-bottom:2px;">Total Energy</div>
+                                    <div style="font-size:1.25rem;font-weight:800;color:#27ae60;" id="calcTotalEnergy">—</div>
+                                    <div style="font-size:0.68rem;color:#9ab0c4;">MWh</div>
+                                </div>
+                            </div>
+                            <div style="font-size:0.72rem;color:#7a95b0;" id="calcResultMeta"></div>
+                        </div>
+
+                        <div id="calcError" style="display:none;margin:0 16px 14px;padding:10px 14px;background:#fff0f0;border:1px solid #f5c6c6;border-radius:6px;color:#c0392b;font-size:0.82rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% include "includes/footer.html" %}
+    
+    <!-- Bootstrap JS for dropdown -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Close dashboard user dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var menu = document.getElementById('dashUserMenu');
+            if (menu && !e.target.closest('#dashUserBtn') && !e.target.closest('#dashUserMenu')) {
+                menu.classList.remove('dash-menu-open');
+            }
+        });
+    </script>
+    
+    <!-- Link to footer CSS -->
+    <link rel="stylesheet" href="/static/css/dashboard_footer.css?v=5" />
+    
+    <!-- Ensure export function is available -->
+    <script>
+        // Export function disabled - using dashboard_enhanced.js version instead
+        function performExport(format = 'csv') {
+            // This function is disabled to prevent duplicate downloads
+            console.log('HTML template export function called but disabled');
+            return;
+            // console.log(`Export function called with format: ${format}`);
+            
+            // Check if data is already loaded in the table, regardless of station selection
+            const tableRows = document.querySelectorAll('#observationsTableBody tr');
+            let tableHasData = false;
+            
+            // Check if table has actual data (not just loading or no data messages)
+            tableRows.forEach(row => {
+                if (row.cells && row.cells.length === 3 && !row.querySelector('.loading')) {
+                    tableHasData = true;
+                }
+            });
+            
+            // If we don't have currentStation, but table has data, proceed with export
+            if (!window.currentStation && !tableHasData) {
+                // Try to get first station from list and select it
+                const stations = document.querySelectorAll('.station-item');
+                if (stations && stations.length > 0) {
+                    // Simulate click on first station
+                    stations[0].click();
+                    setTimeout(() => performExport(format), 1000); // Try export again after station is loaded
+                    return;
+                } else {
+                    alert('Please select a station first');
+                    return;
+                }
+            }
+            
+            // Use the current date range from the inputs
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            // Set default dates if not provided
+            if (!startDate || !endDate) {
+                const today = new Date();
+                const oneMonthAgo = new Date();
+                oneMonthAgo.setMonth(today.getMonth() - 1);
+                
+                document.getElementById('startDate').value = oneMonthAgo.toISOString().split('T')[0];
+                document.getElementById('endDate').value = today.toISOString().split('T')[0];
+                
+                // Try to refresh observations to ensure we have data
+                if (window.refreshObservations && typeof window.refreshObservations === 'function') {
+                    console.log('Refreshing observations with default dates');
+                    try {
+                        window.refreshObservations();
+                        // Give it a moment to load data before continuing
+                        setTimeout(() => performExport(format), 1000);
+                        return;
+                    } catch (e) {
+                        console.error('Error refreshing observations:', e);
+                    }
+                }
+            }
+            
+            // Show loading indicator
+            const exportBtn = document.getElementById('exportDataBtn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            exportBtn.disabled = true;
+            
+            // Function to export data from the table directly
+            function exportTableData() {
+                const tableRows = document.querySelectorAll('#observationsTableBody tr');
+                let tableData = [];
+                
+                // Extract data from the table
+                tableRows.forEach(row => {
+                    if (row.cells && row.cells.length === 3 && !row.querySelector('.loading')) {
+                        tableData.push({
+                            date: row.cells[0].textContent,
+                            discharge: parseFloat(row.cells[1].textContent) || 0,
+                            energy: parseFloat(row.cells[2].textContent) || 0
+                        });
+                    }
+                });
+                
+                if (tableData.length === 0) {
+                    throw new Error('No data available in table');
+                }
+                
+                return tableData;
+            }
+            
+            try {
+                let predictions = [];
+                
+                // If we have table data, use it directly
+                if (tableHasData) {
+                    predictions = exportTableData();
+                    processExport(predictions, format);
+                } 
+                // Otherwise fetch from API if we have a station
+                else if (window.currentStation) {
+                    const apiUrl = `/discharge-prediction/api/stations/${currentStation.station_id}/telemetry/?predictions_only=true&start_date=${document.getElementById('startDate').value}&end_date=${document.getElementById('endDate').value}`;
+                    
+                    fetch(apiUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success || !data.telemetry_data || !data.telemetry_data.predictions || data.telemetry_data.predictions.length === 0) {
+                                throw new Error('No data available for selected date range');
+                            }
+                            
+                            // Process data for export
+                            processExport(data.telemetry_data.predictions, format);
+                        })
+                        .catch(error => {
+                            console.error('Error downloading data:', error);
+                            alert('Error: ' + (error.message || 'Failed to download data'));
+                            // Reset button with delay to ensure it works
+                            setTimeout(() => {
+                                const exportBtn = document.getElementById('exportDataBtn');
+                                if (exportBtn) {
+                                    exportBtn.innerHTML = originalText;
+                                    exportBtn.disabled = false;
+                                }
+                            }, 100);
+                        });
+                } else {
+                    throw new Error('Unable to get prediction data');
+                }
+            } catch (error) {
+                console.error('Error preparing data:', error);
+                alert('Error: ' + (error.message || 'Failed to prepare data for export'));
+                // Reset button with delay to ensure it works
+                setTimeout(() => {
+                    const exportBtn = document.getElementById('exportDataBtn');
+                    if (exportBtn) {
+                        exportBtn.innerHTML = originalText;
+                        exportBtn.disabled = false;
+                    }
+                }, 100);
+            }
+            
+            // Function to process and download the export
+            function processExport(predictions, exportFormat) {
+                try {
+                    // Create filename based on available info
+                    let filename = 'discharge_forecast';
+                    if (window.currentStation && window.currentStation.name) {
+                        filename = `${window.currentStation.name}_${filename}`;
+                    }
+                    
+                    // Add date range to filename if available
+                    const startDateVal = document.getElementById('startDate').value;
+                    const endDateVal = document.getElementById('endDate').value;
+                    if (startDateVal && endDateVal) {
+                        filename += `_${startDateVal}_to_${endDateVal}`;
+                    }
+                    
+                    if (exportFormat === 'csv') {
+                        // Create CSV content
+                        let csvContent = 'Date,Discharge (m³/s),Energy (MWh)\n';
+                        
+                        predictions.forEach(item => {
+                            const date = item.date ? new Date(item.date).toLocaleDateString() : item.date;
+                            const discharge = item.discharge || 0;
+                            const energy = item.energy || 0;
+                            
+                            csvContent += `${date},${discharge.toFixed(3)},${energy.toFixed(3)}\n`;
+                        });
+                        
+                        // Create and trigger download
+                        const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
+                        const link = document.createElement('a');
+                        link.setAttribute('href', encodedUri);
+                        link.setAttribute('download', `${filename}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                } catch (error) {
+                    console.error('Error processing export:', error);
+                    alert('Error creating download: ' + error.message);
+                } finally {
+                    // Always reset button regardless of success or failure
+                    setTimeout(() => {
+                        const exportBtn = document.getElementById('exportDataBtn');
+                        if (exportBtn) {
+                            exportBtn.innerHTML = originalText;
+                            exportBtn.disabled = false;
+                        }
+                    }, 100); // Small delay to ensure download starts
+                }
+            }
+        }
+        
+        // Excel export function
+        function performExcelExport() {
+            // console.log('Excel export function called');
+            
+            // Show loading indicator
+            const exportBtn = document.getElementById('exportExcelBtn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            exportBtn.disabled = true;
+            
+            // Reuse the existing data gathering logic by calling performExport with a callback
+            try {
+                // Check if data is already loaded in the table
+                const tableRows = document.querySelectorAll('#observationsTableBody tr');
+                let tableData = [];
+                let hasData = false;
+                
+                // Extract data from the table
+                tableRows.forEach(row => {
+                    if (row.cells && row.cells.length === 3 && !row.querySelector('.loading')) {
+                        hasData = true;
+                        tableData.push({
+                            date: row.cells[0].textContent,
+                            discharge: parseFloat(row.cells[1].textContent) || 0,
+                            energy: parseFloat(row.cells[2].textContent) || 0
+                        });
+                    }
+                });
+                
+                if (!hasData) {
+                    // If no data in table, try to select first station or show alert
+                    if (!window.currentStation) {
+                        const stations = document.querySelectorAll('.station-item');
+                        if (stations && stations.length > 0) {
+                            stations[0].click();
+                            setTimeout(performExcelExport, 1000);
+                            return;
+                        } else {
+                            throw new Error('Please select a station first');
+                        }
+                    }
+                    
+                    // Use current date range
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    
+                    if (!startDate || !endDate) {
+                        const today = new Date();
+                        const oneMonthAgo = new Date();
+                        oneMonthAgo.setMonth(today.getMonth() - 1);
+                        
+                        document.getElementById('startDate').value = oneMonthAgo.toISOString().split('T')[0];
+                        document.getElementById('endDate').value = today.toISOString().split('T')[0];
+                    }
+                    
+                    // Try to get data from API
+                    const apiUrl = `/discharge-prediction/api/stations/${window.currentStation.station_id}/telemetry/?predictions_only=true&start_date=${document.getElementById('startDate').value}&end_date=${document.getElementById('endDate').value}`;
+                    
+                    fetch(apiUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success || !data.telemetry_data || !data.telemetry_data.predictions || data.telemetry_data.predictions.length === 0) {
+                                throw new Error('No data available for selected date range');
+                            }
+                            
+                            // Generate Excel with the prediction data
+                            generateExcel(data.telemetry_data.predictions);
+                        })
+                        .catch(error => {
+                            console.error('Error downloading data:', error);
+                            alert('Error: ' + (error.message || 'Failed to download data'));
+                            // Reset button
+                            exportBtn.innerHTML = originalText;
+                            exportBtn.disabled = false;
+                        });
+                } else {
+                    // We have data in the table, use it directly
+                    generateExcel(tableData);
+                }
+            } catch (error) {
+                console.error('Error preparing Excel data:', error);
+                alert('Error: ' + (error.message || 'Failed to prepare data for Excel export'));
+                // Reset button
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            }
+            
+            // Function to generate Excel file using SheetJS
+            function generateExcel(data) {
+                try {
+                    // Create workbook and worksheet
+                    const wb = XLSX.utils.book_new();
+                    
+                    // Format data for worksheet
+                    const wsData = [
+                        ['Date', 'Discharge (m³/s)', 'Energy (MWh)']
+                    ];
+                    
+                    data.forEach(item => {
+                        const date = item.date ? new Date(item.date) : new Date();
+                        wsData.push([
+                            date,
+                            Number(item.discharge) || 0,
+                            Number(item.energy) || 0
+                        ]);
+                    });
+                    
+                    // Create worksheet
+                    const ws = XLSX.utils.aoa_to_sheet(wsData);
+                    
+                    // Set column formats
+                    const fmt = '0.000';
+                    for (let i = 2; i <= data.length + 1; i++) {
+                        const dischargeCell = XLSX.utils.encode_cell({r: i, c: 1}); // B2, B3, etc.
+                        const energyCell = XLSX.utils.encode_cell({r: i, c: 2});    // C2, C3, etc.
+                        
+                        if (!ws[dischargeCell]) ws[dischargeCell] = { t: 'n', v: 0 };
+                        if (!ws[energyCell]) ws[energyCell] = { t: 'n', v: 0 };
+                        
+                        ws[dischargeCell].z = fmt;
+                        ws[energyCell].z = fmt;
+                    }
+                    
+                    // Add the worksheet to the workbook
+                    XLSX.utils.book_append_sheet(wb, ws, 'Discharge Predictions');
+                    
+                    // Generate filename
+                    let filename = 'discharge_forecast';
+                    if (window.currentStation && window.currentStation.name) {
+                        filename = `${window.currentStation.name}_${filename}`;
+                    }
+                    
+                    // Add date range to filename if available
+                    const startDateVal = document.getElementById('startDate').value;
+                    const endDateVal = document.getElementById('endDate').value;
+                    if (startDateVal && endDateVal) {
+                        filename += `_${startDateVal}_to_${endDateVal}`;
+                    }
+                    
+                    // Write and download the file
+                    XLSX.writeFile(wb, `${filename}.xlsx`);
+                    
+                } catch (e) {
+                    console.error('Error generating Excel file:', e);
+                    alert('Error creating Excel file: ' + e.message);
+                } finally {
+                    // Reset button
+                    exportBtn.innerHTML = originalText;
+                    exportBtn.disabled = false;
+                }
+            }
+        }
+        
+        // Attach to button directly and ensure a station is selected
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportCsvBtn = document.getElementById('exportDataBtn');
+            if (exportCsvBtn) {
+                // console.log('Export CSV button found in inline script');
+                exportCsvBtn.onclick = () => performExport('csv');
+            }
+            
+            const exportExcelBtn = document.getElementById('exportExcelBtn');
+            if (exportExcelBtn) {
+                // console.log('Export Excel button found in inline script');
+                exportExcelBtn.onclick = performExcelExport;
+            }
+            
+            // Auto-select the first station if none is selected after a short delay
+            setTimeout(function() {
+                if (!window.currentStation) {
+                    // console.log('No station selected, trying to auto-select first station');
+                    const stations = document.querySelectorAll('.station-item');
+                    if (stations && stations.length > 0) {
+                        // console.log('Auto-selecting first station');
+                        stations[0].click();
+                    }
+                }
+            }, 1000);
+        });
+        
+        // Global debug functions - defined after everything else
+        console.log('Defining global debug functions...');
+        
+        window.testAPI = function() {
+            console.log('=== SIMPLE API TEST ===');
+            fetch('/discharge-prediction/api/stations/1/monthly-forecast/')
+                .then(r => r.json())
+                .then(data => console.log('API Response:', data))
+                .catch(e => console.error('API Error:', e));
+        };
+        
+        window.checkTable = function() {
+            const tbody = document.getElementById('monthlyForecastTableBody');
+            console.log('Table element exists:', !!tbody);
+            if (tbody) {
+                console.log('Table innerHTML:', tbody.innerHTML);
+            }
+            return tbody;
+        };
+        
+        window.manualLoad = function() {
+            console.log('=== MANUAL LOAD TEST ===');
+            if (typeof loadMonthlyForecast === 'function') {
+                loadMonthlyForecast('1');
+            } else {
+                console.error('loadMonthlyForecast function not available');
+            }
+        };
+        
+        window.insertTestData = function() {
+            console.log('=== INSERTING TEST DATA ===');
+            const tbody = document.getElementById('monthlyForecastTableBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td>September 2025</td>
+                        <td>90.895</td>
+                        <td>21423</td>
+                        <td><span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">Completed</span></td>
+                    </tr>
+                    <tr>
+                        <td>October 2025</td>
+                        <td>22137</td>
+                        <td>93.907</td>
+                        <td><span style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">Completed</span></td>
+                    </tr>
+                `;
+                console.log('Test data inserted successfully');
+            } else {
+                console.error('Table element not found');
+            }
+        };
+        
+        // Monthly forecast pagination variables
+        let currentMonthlyPage = 0;  // 0-based index, like Discharge table
+        let monthlyRowsPerPage = 8;
+        let allMonthlyData = [];  // stores all records, fetched once per station
+
+        function renderMonthlyPage() {
+            const tbody = document.getElementById('monthlyForecastTableBody');
+            if (!tbody) return;
+
+            const totalPages = Math.ceil(allMonthlyData.length / monthlyRowsPerPage);
+            if (currentMonthlyPage >= totalPages) currentMonthlyPage = Math.max(0, totalPages - 1);
+
+            const startIndex = currentMonthlyPage * monthlyRowsPerPage;
+            const pageData = allMonthlyData.slice(startIndex, startIndex + monthlyRowsPerPage);
+
+            tbody.innerHTML = '';
+            const statusStyle = 'background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;';
+            pageData.forEach(forecast => {
+                const monthYear = `${forecast.month_name} ${forecast.year}`;
+                const avgDischarge = forecast.average_discharge ? forecast.average_discharge.toFixed(3) : 'N/A';
+                const monthlyEnergy = forecast.monthly_energy ? forecast.monthly_energy.toFixed(0) : 'N/A';
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${monthYear}</td><td>${avgDischarge}</td><td>${monthlyEnergy}</td><td><span style="${statusStyle}">Completed</span></td>`;
+                tbody.appendChild(row);
+            });
+
+            // Spacer rows to keep table height constant (same approach as Discharge table)
+            for (let i = pageData.length; i < monthlyRowsPerPage; i++) {
+                const spacer = document.createElement('tr');
+                spacer.className = 'spacer-row';
+                spacer.innerHTML = '<td colspan="4">&nbsp;</td>';
+                tbody.appendChild(spacer);
+            }
+
+            updateMonthlyPaginationControls(currentMonthlyPage + 1, totalPages);
+        }
+
+        // Fetch all data once per station, then paginate client-side
+        window.loadMonthlyForecast = function(stationId) {
+            const tbody = document.getElementById('monthlyForecastTableBody');
+            if (!tbody) return;
+
+            allMonthlyData = [];
+            currentMonthlyPage = 0;
+            clearMonthlyPaginationControls();
+
+            fetch(`/discharge-prediction/api/stations/${stationId}/monthly-forecast/?limit=9999`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.monthly_forecasts && data.monthly_forecasts.length > 0) {
+                        allMonthlyData = data.monthly_forecasts;
+                        renderMonthlyPage();
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:10px;">No monthly forecast data available.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading monthly forecast:', error);
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:10px;">Error loading monthly forecast data.</td></tr>';
+                });
+        };
+        
+        function updateMonthlyPaginationControls(currentPage, totalPages) {
+            const paginationContainer = document.getElementById('monthlyPaginationContainer');
+            if (!paginationContainer) return;
+
+            if (totalPages <= 1) {
+                paginationContainer.style.visibility = 'hidden';
+                return;
+            }
+
+            paginationContainer.style.visibility = 'visible';
+            paginationContainer.style.display = 'flex';
+            paginationContainer.innerHTML = `
+                <button class="pagination-btn" onclick="previousMonthlyPage()" ${currentPage <= 1 ? 'disabled' : ''}>
+                    ← Previous
+                </button>
+                <span style="margin: 0 15px; font-size: 16px;">
+                    Page ${currentPage} of ${totalPages} (${allMonthlyData.length} total records)
+                </span>
+                <button class="pagination-btn" onclick="nextMonthlyPage()" ${currentPage >= totalPages ? 'disabled' : ''}>
+                    Next →
+                </button>
+            `;
+        }
+
+        function clearMonthlyPaginationControls() {
+            const paginationContainer = document.getElementById('monthlyPaginationContainer');
+            if (paginationContainer) {
+                paginationContainer.style.visibility = 'hidden';
+            }
+        }
+
+        window.previousMonthlyPage = function() {
+            if (currentMonthlyPage > 0) {
+                currentMonthlyPage--;
+                renderMonthlyPage();
+            }
+        };
+
+        window.nextMonthlyPage = function() {
+            const totalPages = Math.ceil(allMonthlyData.length / monthlyRowsPerPage);
+            if (currentMonthlyPage < totalPages - 1) {
+                currentMonthlyPage++;
+                renderMonthlyPage();
+            }
+        };
+        
+        console.log('Debug functions defined successfully');
+        
+        // Test function to manually click the second station
+        window.testStationSwitch = function() {
+            console.log('=== TESTING STATION SWITCH ===');
+            const stationItems = document.querySelectorAll('.station-item');
+            console.log('Found station items:', stationItems.length);
+            
+            stationItems.forEach((item, index) => {
+                console.log(`Station item ${index}:`, item.textContent.trim());
+            });
+            
+            if (stationItems.length > 1) {
+                console.log('Clicking on second station...');
+                stationItems[1].click();
+            } else {
+                console.log('Not enough stations to switch');
+            }
+        };
+        
+        // Function to check current station info
+        window.checkCurrentStation = function() {
+            console.log('Current station (local):', currentStation);
+            console.log('Current station (window):', window.currentStation);
+            if (window.currentStation) {
+                console.log('Station ID:', window.currentStation.station_id);
+                console.log('Station name:', window.currentStation.name);
+            }
+        };
+        
+        // Test function to manually load station 2 monthly forecast
+        window.testStation2 = function() {
+            console.log('=== TESTING STATION 2 MONTHLY FORECAST ===');
+            window.loadMonthlyForecast('2');
+        };
+        
+        // Test function to manually load station 1 monthly forecast  
+        window.testStation1 = function() {
+            console.log('=== TESTING STATION 1 MONTHLY FORECAST ===');
+            window.loadMonthlyForecast('1');
+        };
+        
+        // Force select station 2 with all debugging
+        window.forceSelectStation2 = function() {
+            console.log('=== FORCE SELECT STATION 2 ===');
+            const stations = window.stationsData || [];
+            console.log('Available stations:', stations);
+            
+            const station2 = stations.find(s => s.station_id === '2');
+            console.log('Found station 2:', station2);
+            
+            if (station2) {
+                console.log('Calling selectStation with station 2 data');
+                selectStation(station2);
+            } else {
+                console.error('Station 2 not found in stations data');
+            }
+        };
+
+        // ── Energy Calculator ─────────────────────────────────────────────
+        function runEnergyCalculator() {
+            const station = window.currentStation;
+            if (!station) {
+                showCalcError('Please select a station first.');
+                return;
+            }
+
+            const startDate = document.getElementById('calcStartDate').value;
+            const endDate   = document.getElementById('calcEndDate').value;
+            if (!startDate || !endDate) {
+                showCalcError('Please enter both start date and end date.');
+                return;
+            }
+            if (startDate > endDate) {
+                showCalcError('Start date must be before or equal to end date.');
+                return;
+            }
+
+            const dutyCyclePct = parseFloat(document.getElementById('calcOperatingHours').value);
+            if (isNaN(dutyCyclePct) || dutyCyclePct <= 0 || dutyCyclePct > 100) {
+                showCalcError('Duty cycle must be between 0% (exclusive) and 100%.');
+                return;
+            }
+            const operatingHours = (dutyCyclePct / 100) * 24;  // convert % → hrs/day for API
+
+            const netHeadVal = document.getElementById('calcNetHead').value.trim();
+            const netHeadParam = netHeadVal ? `&net_head=${encodeURIComponent(netHeadVal)}` : '';
+
+            const btn = document.getElementById('calcRunBtn');
+            btn.disabled = true;
+            btn.textContent = 'Calculating…';
+            document.getElementById('calcResultCard').style.display = 'none';
+            document.getElementById('calcError').style.display = 'none';
+
+            const url = `/discharge-prediction/api/stations/${station.station_id}/energy-calculator/` +
+                        `?start_date=${startDate}&end_date=${endDate}` +
+                        `&operating_hours=${operatingHours}${netHeadParam}`;
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.textContent = 'Calculate Energy Forecast';
+
+                    if (!data.success) {
+                        showCalcError(data.error || 'Calculation failed.');
+                        return;
+                    }
+                    if (!data.has_data) {
+                        showCalcError(data.message || 'No discharge predictions found for the selected date range.');
+                        return;
+                    }
+
+                    const p = data.period;
+                    const r = data.results;
+                    const params = data.parameters;
+
+                    document.getElementById('calcResultPeriod').textContent =
+                        `${p.start_date} → ${p.end_date}  |  ${p.days_with_data} days with data` +
+                        (p.days_capped > 0 ? `  |  ${p.days_capped} days at turbine cap` : '');
+
+                    document.getElementById('calcAvgDischarge').textContent  = r.avg_discharge_m3s.toFixed(3);
+                    document.getElementById('calcAvgPower').textContent       = r.avg_power_mw.toFixed(3);
+                    document.getElementById('calcDailyEnergy').textContent    = r.avg_daily_energy_mwh.toFixed(2);
+                    document.getElementById('calcTotalEnergy').textContent    = r.total_energy_mwh.toFixed(1);
+
+                    const dutyCycleDisplayPct = Math.round((params.operating_hours_per_day / 24) * 100);
+                    document.getElementById('calcResultMeta').textContent =
+                        `η=${params.efficiency}  |  H=${params.net_head_m} m` +
+                        (params.net_head_source === 'override' ? ' (override)' : '') +
+                        `  |  Q_max=${params.max_discharge_m3s} m³/s` +
+                        `  |  ${dutyCycleDisplayPct}% duty cycle`;
+
+                    document.getElementById('calcResultCard').style.display = 'block';
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.textContent = 'Calculate Energy Forecast';
+                    showCalcError('Network error: ' + err.message);
+                });
+        }
+
+        function showCalcError(msg) {
+            const el = document.getElementById('calcError');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('calcResultCard').style.display = 'none';
+        }
+
+        // Pre-fill calculator dates from current chart view when a station is selected
+        window.prefillCalculatorDates = function(startDate, endDate) {
+            const s = document.getElementById('calcStartDate');
+            const e = document.getElementById('calcEndDate');
+            if (s && !s.value) s.value = startDate;
+            if (e && !e.value) e.value = endDate;
+        };
+
+        // ── Weather Conditions card ───────────────────────────────────────────
+        function loadWeatherSummary(station) {
+            const section = document.getElementById('weatherConditionsSection');
+            const body    = document.getElementById('weatherConditionsBody');
+            if (!section || !body) return;
+
+            body.innerHTML = '<div style="color:#7a95b0;font-size:0.85rem;padding:8px 0;">Loading weather data…</div>';
+            section.style.display = 'block';
+
+            fetch(`/discharge-prediction/api/stations/${station.station_id}/weather-summary/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success || !data.weather || data.weather.length === 0) {
+                        body.innerHTML = '<div style="color:#aaa;font-size:0.83rem;">No weather data available for this station.</div>';
+                        return;
+                    }
+                    body.innerHTML = renderWeatherCards(data.weather);
+                })
+                .catch(() => {
+                    body.innerHTML = '<div style="color:#c0392b;font-size:0.83rem;">Could not load weather data.</div>';
+                });
+        }
+
+        function renderWeatherCards(entries) {
+            // Separate rainfall and climate entries
+            const rain    = entries.find(e => e.variable_type === 'rainfall');
+            const climate = entries.find(e => e.variable_type === 'climate');
+
+            let html = '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
+
+            // Helper: build one metric tile
+            function tile(icon, label, value, unit, sub) {
+                const valHtml = value !== null && value !== undefined
+                    ? `<span style="font-size:1.1rem;font-weight:700;color:#1a6fa8;">${value}</span><span style="font-size:0.75rem;color:#7a95b0;margin-left:3px;">${unit}</span>`
+                    : `<span style="font-size:0.88rem;color:#bbb;">—</span>`;
+                const subHtml = sub ? `<div style="font-size:0.7rem;color:#9ab0c4;margin-top:1px;">${sub}</div>` : '';
+                return `<div style="background:#f4f8fd;border:1px solid #dde8f5;border-radius:8px;padding:10px 14px;min-width:110px;text-align:center;">
+                    <div style="font-size:1.3rem;">${icon}</div>
+                    <div style="font-size:0.7rem;color:#7a95b0;margin-bottom:3px;">${label}</div>
+                    <div>${valHtml}</div>
+                    ${subHtml}
+                </div>`;
+            }
+
+            // Stale badge
+            function staleBadge(entry) {
+                if (!entry || !entry.has_data) return '';
+                if (entry.is_stale) return `<span style="background:#f39c12;color:#fff;font-size:0.65rem;padding:1px 6px;border-radius:10px;margin-left:6px;">stale</span>`;
+                return '';
+            }
+
+            // Rainfall card
+            if (rain) {
+                const src   = rain.dhm_station;
+                const asOf  = rain.as_of ? `as of ${rain.as_of}` : '';
+                const rVal  = rain.has_data && rain.rainfall_mm !== null ? rain.rainfall_mm.toFixed(1) : null;
+                html += `<div style="background:#fff;border:1px solid #c8e6c9;border-radius:8px;padding:12px 16px;flex:1;min-width:200px;">
+                    <div style="font-size:0.75rem;color:#5a7a9a;margin-bottom:8px;font-weight:600;">
+                        &#127783; Rainfall
+                        <span style="font-weight:400;font-size:0.7rem;color:#9ab0c4;margin-left:4px;">${src} · ${asOf}</span>
+                        ${staleBadge(rain)}
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        ${tile('&#127783;', 'Today Total', rVal, 'mm', '')}
+                    </div>
+                </div>`;
+            }
+
+            // Climate card
+            if (climate) {
+                const src  = climate.dhm_station;
+                const asOf = climate.as_of ? `as of ${climate.as_of}` : '';
+                const tAvg = climate.temp_avg_c !== null ? climate.temp_avg_c.toFixed(1) : null;
+                const tRange = (climate.temp_min_c !== null && climate.temp_max_c !== null)
+                    ? `${climate.temp_min_c.toFixed(0)}–${climate.temp_max_c.toFixed(0)} °C` : '';
+                const rh   = climate.rh_avg !== null ? climate.rh_avg.toFixed(0) : null;
+                const ws   = climate.wind_speed_avg_ms !== null ? climate.wind_speed_avg_ms.toFixed(1) : null;
+                const wdDeg = climate.wind_dir_avg_deg !== null ? climate.wind_dir_avg_deg.toFixed(0) : null;
+                const wdComp = climate.wind_dir_compass || '';
+                const wdLabel = wdDeg ? `${wdDeg}° ${wdComp}` : null;
+
+                html += `<div style="background:#fff;border:1px solid #d0dbe8;border-radius:8px;padding:12px 16px;flex:2;min-width:300px;">
+                    <div style="font-size:0.75rem;color:#5a7a9a;margin-bottom:8px;font-weight:600;">
+                        &#127782; Climate
+                        <span style="font-weight:400;font-size:0.7rem;color:#9ab0c4;margin-left:4px;">${src} · ${asOf}</span>
+                        ${staleBadge(climate)}
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        ${tile('&#127777;', 'Temperature', tAvg, '°C', tRange)}
+                        ${tile('&#128167;', 'Humidity', rh, '%', '')}
+                        ${tile('&#127788;', 'Wind Speed', ws, 'm/s', '')}
+                        ${tile('&#129517;', 'Wind Dir', wdLabel, '', '')}
+                    </div>
+                </div>`;
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        window.loadWeatherSummary = loadWeatherSummary;
+    </script>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Hydro WebPortal</title>
+    {% load static %}
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+    <style>
+        body { background: #f0f4f8; }
+
+        /* ── Navbar dropdown (mirrors home.html) ──────────────────────── */
+        .home-user-btn { background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 25px; transition: background 0.2s; }
+        .home-user-btn:hover { background: rgba(255,255,255,0.15); }
+        .home-user-dropdown {
+            display: none; position: absolute; right: 0; top: calc(100% + 8px);
+            background: #fff; border-radius: 12px; min-width: 200px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.18); list-style: none;
+            padding: 6px 0; z-index: 9999; border: 1px solid rgba(0,0,0,0.08);
+        }
+        .home-user-dropdown.home-menu-open { display: block; }
+        .home-user-dropdown li a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; color: #2c3e50; text-decoration: none;
+            font-size: 0.9rem; font-weight: 500; transition: background 0.15s;
+        }
+        .home-user-dropdown li a:hover { background: #f0f5ff; }
+        .home-user-dropdown li a i { width: 16px; color: #3498db; }
+        .home-menu-divider { height: 1px; background: #eee; margin: 4px 0; }
+
+        /* ── Profile hero banner ──────────────────────────────────────── */
+        .profile-hero {
+            background: linear-gradient(135deg, #2c3e50 0%, #3d5166 100%);
+            padding: 56px 0 36px;
+            margin-top: 66px;
+        }
+        .profile-hero-inner {
+            max-width: 1100px; margin: 0 auto; padding: 0 24px;
+            display: flex; align-items: center; gap: 24px;
+        }
+        .profile-avatar {
+            width: 78px; height: 78px; border-radius: 50%;
+            background: rgba(52,152,219,0.28); border: 3px solid rgba(255,255,255,0.50);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: 700; color: #fff; flex-shrink: 0;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+        }
+        .profile-hero-text h1 { color: #fff; font-size: 1.55rem; font-weight: 700; margin: 0 0 3px; text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+        .profile-hero-text p  { color: rgba(255,255,255,0.55); font-size: 0.87rem; margin: 0; }
+        .tier-badge {
+            display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+            background: rgba(52,152,219,0.22); border: 1px solid rgba(52,152,219,0.42);
+            color: #7ecef4; border-radius: 20px; padding: 3px 12px;
+            font-size: 0.74rem; font-weight: 600;
+        }
+
+        /* ── Two-column content layout ────────────────────────────────── */
+        .profile-section {
+            max-width: 1100px; margin: 0 auto; padding: 36px 24px 60px;
+            display: grid; grid-template-columns: 400px 1fr;
+            gap: 28px; align-items: start;
+        }
+        @media (max-width: 860px) {
+            .profile-section { grid-template-columns: 1fr; }
+            .profile-hero   { margin-top: 56px; }
+        }
+
+        /* ── Cards ───────────────────────────────────────────────────── */
+        .p-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 16px rgba(44,62,80,0.09); overflow: hidden; }
+        .p-card-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 15px 24px; display: flex; align-items: center; gap: 10px; color: #fff;
+        }
+        .p-card-header i  { font-size: 0.95rem; color: #4fc3f7; }
+        .p-card-header h3 { font-size: 0.97rem; font-weight: 600; margin: 0; }
+        .p-card-body { padding: 28px 24px; }
+
+        /* ── Form fields ─────────────────────────────────────────────── */
+        .pf-group { margin-bottom: 17px; }
+        .pf-label {
+            display: block; font-size: 0.76rem; font-weight: 600; color: #5a6a7a;
+            margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .form-control {
+            width: 100%; padding: 10px 13px; border: 1px solid #dde3ea; border-radius: 8px;
+            font-size: 0.9rem; color: #2c3e50; background: #fafbfc; font-family: inherit;
+            outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .form-control:focus { border-color: #3498db; background: #fff; box-shadow: 0 0 0 3px rgba(52,152,219,0.12); }
+        .form-control:disabled { background: #f0f4f8; color: #8a9ab0; cursor: not-allowed; }
+        .field-note { font-size: 0.75rem; color: #8a9ab0; margin-top: 4px; display: block; }
+        .f-error { color: #e74c3c; font-size: 0.78rem; margin-top: 4px; }
+        .f-error ul { margin: 0; padding: 0; list-style: none; }
+
+        /* ── Buttons ─────────────────────────────────────────────────── */
+        .btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9); color: #fff;
+            border: none; border-radius: 8px; padding: 10px 22px;
+            font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            box-shadow: 0 3px 10px rgba(52,152,219,0.28); font-family: inherit;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+        .btn-primary:hover { opacity: 0.90; transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-secondary {
+            background: #f0f4f8; color: #2c3e50; border: 1px solid #dde3ea;
+            border-radius: 8px; padding: 10px 22px; font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            font-family: inherit; transition: background 0.2s;
+        }
+        .btn-secondary:hover { background: #e3eaf4; }
+
+        /* ── Flash messages ──────────────────────────────────────────── */
+        .p-alert { border-radius: 8px; padding: 11px 15px; margin-bottom: 18px; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 8px; }
+        .p-alert.success { background: #eafaf1; border: 1px solid #a9dfbf; color: #1e8449; }
+        .p-alert.error   { background: #fdedec; border: 1px solid #f1948a; color: #c0392b; }
+        .p-alert.info    { background: #eaf4fb; border: 1px solid #aed6f1; color: #1a5276; }
+
+        /* ── Station list ────────────────────────────────────────────── */
+        .station-empty { text-align: center; padding: 36px 16px; color: #8a9ab0; }
+        .station-empty i { font-size: 2.4rem; margin-bottom: 10px; color: #c5cfe0; display: block; }
+        .station-empty strong { display: block; color: #5a6a7a; font-size: 0.92rem; margin-bottom: 4px; }
+
+        .station-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 13px 14px; border-radius: 10px; border: 1px solid #edf1f7;
+            margin-bottom: 10px; text-decoration: none; color: inherit;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+        .station-item:last-child { margin-bottom: 0; }
+        .station-item:hover { background: #f5f8ff; box-shadow: 0 2px 8px rgba(52,152,219,0.09); }
+        .station-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: linear-gradient(135deg, rgba(52,152,219,0.12), rgba(41,128,185,0.18));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.95rem; color: #3498db; flex-shrink: 0;
+        }
+        .station-info { flex: 1; min-width: 0; }
+        .station-name { font-size: 0.91rem; font-weight: 600; color: #2c3e50; margin-bottom: 2px; }
+        .station-meta { font-size: 0.77rem; color: #8a9ab0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .access-badge { font-size: 0.70rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
+        .badge-admin  { background: #fdecea; color: #c0392b; }
+        .badge-editor { background: #fef9e7; color: #b7770d; }
+        .badge-viewer { background: #eaf4fb; color: #1a5276; }
+    </style>
+</head>
+<body>
+
+<!-- Navigation Header (same dark-gradient as home.html) -->
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo"><a href="{% url 'home' %}" style="text-decoration:none;color:inherit;"><h2>Antarikchya Hydropower Portal</h2></a></div>
+        <ul class="nav-menu" id="navMenu">
+            <li class="nav-item"><a href="{% url 'home' %}"               class="nav-link">Home</a></li>
+            <li class="nav-item"><a href="{% url 'delineation:index' %}"  class="nav-link">Watershed Delineation</a></li>
+            <li class="nav-item" style="position:relative;">
+                <button class="sign-in-btn home-user-btn" type="button"
+                        onclick="document.getElementById('profileUserMenu').classList.toggle('home-menu-open')"
+                        style="display:flex;align-items:center;gap:8px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;
+                        width:30px;height:30px;border-radius:50%;
+                        background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.7);
+                        font-size:0.8rem;color:#fff;"><i class="fas fa-user"></i>
+                    </span>
+                    <span style="color:#fff;font-size:0.9rem;font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ user.get_full_name|default:user.email }}
+                    </span>
+                    <i class="fas fa-chevron-down" style="color:#fff;font-size:0.7rem;"></i>
+                </button>
+                <ul id="profileUserMenu" class="home-user-dropdown">
+                    <li><a href="{% url 'users:profile' %}"><i class="fas fa-id-card"></i> My Profile</a></li>
+                    {% if user.is_staff %}
+                    <li><a href="{% url 'admin:index' %}"><i class="fas fa-tools"></i> Admin Panel</a></li>
+                    {% endif %}
+                    <li class="home-menu-divider"></li>
+                    <li><a href="{% url 'users:logout' %}" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                </ul>
+            </li>
+        </ul>
+        <div class="hamburger" id="hamburger">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+    </div>
+</nav>
+
+<!-- Page Hero -->
+<div class="profile-hero">
+    <div class="profile-hero-inner">
+        <div class="profile-avatar">
+            {{ user.first_name|first|upper|default:user.email|first|upper }}
+        </div>
+        <div class="profile-hero-text">
+            <h1>{{ user.get_full_name|default:user.email }}</h1>
+            <p>{{ user.email }}</p>
+            <div class="tier-badge">
+                {% if user.account_tier == 'full' %}
+                    <i class="fas fa-star"></i> Full Access
+                {% else %}
+                    <i class="fas fa-user"></i> Free Account
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main content grid -->
+<div class="profile-section">
+
+    <!-- Profile form card -->
+    <div class="p-card">
+        <div class="p-card-header">
+            <i class="fas fa-user-edit"></i>
+            <h3>My Profile</h3>
+        </div>
+        <div class="p-card-body">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="p-alert {% if 'success' in message.tags %}success{% elif 'error' in message.tags %}error{% else %}info{% endif %}">
+                        <i class="fas {% if 'success' in message.tags %}fa-check-circle{% elif 'error' in message.tags %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="pf-group">
+                    <label class="pf-label" for="{{ form.first_name.id_for_label }}">First Name</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<div class="f-error">{{ form.first_name.errors }}</div>{% endif %}
+                </div>
+
+                <div class="pf-group">
+                    <label class="pf-label" for="{{ form.last_name.id_for_label }}">Last Name</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<div class="f-error">{{ form.last_name.errors }}</div>{% endif %}
+                </div>
+
+                <div class="pf-group">
+                    <label class="pf-label">Email Address</label>
+                    <input type="email" class="form-control" value="{{ user.email }}" disabled>
+                    <span class="field-note"><i class="fas fa-lock" style="margin-right:4px;"></i>Email cannot be changed. Contact administrator for assistance.</span>
+                </div>
+
+                <div class="pf-group">
+                    <label class="pf-label" for="{{ form.organization.id_for_label }}">Organization</label>
+                    {{ form.organization }}
+                    {% if form.organization.errors %}<div class="f-error">{{ form.organization.errors }}</div>{% endif %}
+                </div>
+
+                <div class="pf-group">
+                    <label class="pf-label" for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+                    {{ form.phone_number }}
+                    {% if form.phone_number.errors %}<div class="f-error">{{ form.phone_number.errors }}</div>{% endif %}
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save" style="margin-right:6px;"></i>Update Profile
+                    </button>
+                    <a href="{% url 'users:password_reset' %}" class="btn-secondary">
+                        <i class="fas fa-key"></i> Change Password
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stations card -->
+    <div class="p-card">
+        <div class="p-card-header">
+            <i class="fas fa-broadcast-tower"></i>
+            <h3>My Stations</h3>
+        </div>
+        <div class="p-card-body">
+            {% if user_stations %}
+                {% for station in user_stations %}
+                    <a href="{% url 'discharge_prediction:dashboard' %}?station={{ station.station_id }}" class="station-item">
+                        <div class="station-icon"><i class="fas fa-water"></i></div>
+                        <div class="station-info">
+                            <div class="station-name">{{ station.name }}</div>
+                            <div class="station-meta">{{ station.river_name }} &nbsp;·&nbsp; ID: {{ station.station_id }}</div>
+                        </div>
+                        {% with access=station.user_accesses.all|dictsort:'granted_at'|last %}
+                            {% if access and access.user == user %}
+                                {% if access.access_level == 'admin' %}
+                                    <span class="access-badge badge-admin">Admin</span>
+                                {% elif access.access_level == 'editor' %}
+                                    <span class="access-badge badge-editor">Editor</span>
+                                {% else %}
+                                    <span class="access-badge badge-viewer">Viewer</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endwith %}
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="station-empty">
+                    <i class="fas fa-satellite-dish"></i>
+                    <strong>No stations assigned yet</strong>
+                    <p style="font-size:0.82rem;margin:0;">You don't have access to any discharge stations.<br>Contact the administrator to get access.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer (same as home.html) -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Antarikchya Hydropower Portal</h3>
+                <p>Advanced watershed delineation portal for accurate hydrological analysis in Nepal.</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="{% url 'home' %}">Home</a></li>
+                    <li><a href="{% url 'delineation:index' %}">Delineation Tool</a></li>
+                    <li><a href="{% url 'users:my_stations' %}">My Stations</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p>For technical support and inquiries about watershed delineation services. Mail us: antarikchya@gmail.com</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Antarikchya Hydropower Portal. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.getElementById('hamburger').addEventListener('click', function () {
+        document.getElementById('navMenu').classList.toggle('active');
+    });
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('profileUserMenu');
+        if (menu && !e.target.closest('.home-user-btn') && !e.target.closest('#profileUserMenu')) {
+            menu.classList.remove('home-menu-open');
+        }
+    });
+</script>
+</body>
+</html>

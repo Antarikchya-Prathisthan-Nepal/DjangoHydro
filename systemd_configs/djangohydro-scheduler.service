@@ -1,0 +1,22 @@
+[Unit]
+Description=DjangoHydro Daily Pipeline (ERA5 download + predictions + DHM discharge fetch)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/hydro/Hydro_WebPortal
+ExecStart=/home/ubuntu/hydro/.venv/bin/python daily_master_scheduler.py
+
+# Long-running process — restart automatically if it ever crashes
+Restart=always
+RestartSec=30
+
+# Django settings
+Environment=DJANGO_SETTINGS_MODULE=Hydro_WebPortal.settings_production
+
+StandardOutput=append:/home/ubuntu/hydro/scheduler.log
+StandardError=append:/home/ubuntu/hydro/scheduler_error.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{ title }}</title>
+    {% load static %}
+    <!-- Favicon - directly referenced with file path for better browser compatibility -->
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/APN-logo.png' %}">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    {% csrf_token %}
+    <script>window.CSRF_TOKEN = '{{ csrf_token }}';</script>
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'css/alerts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/modal_close.css' %}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Home navbar profile dropdown */
+        .home-user-btn { background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 25px; transition: background 0.2s; }
+        .home-user-btn:hover { background: rgba(255,255,255,0.15); }
+        .home-user-dropdown {
+            display: none; position: absolute; right: 0; top: calc(100% + 8px);
+            background: #fff; border-radius: 12px; min-width: 200px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.18); list-style: none;
+            padding: 6px 0; z-index: 9999;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .home-user-dropdown.home-menu-open { display: block; }
+        .home-user-dropdown li a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; color: #2c3e50; text-decoration: none;
+            font-size: 0.9rem; font-weight: 500; transition: background 0.15s;
+        }
+        .home-user-dropdown li a:hover { background: #f0f5ff; }
+        .home-user-dropdown li a i { width: 16px; color: #3498db; }
+        .home-menu-divider { height: 1px; background: #eee; margin: 4px 0; }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <h2> Antarikchya Hydropower Portal </h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#home" class="nav-link">Home</a>
+                </li>
+                {% comment %} <li class="nav-item">
+                    <a href="#about" class="nav-link">About</a>
+                </li> {% endcomment %}
+                <li class="nav-item">
+                    <a href="#contact" class="nav-link">Contact</a>
+                </li>
+                {% if user.is_authenticated %}
+                <li class="nav-item" style="position:relative;">
+                    <button class="sign-in-btn home-user-btn" type="button" onclick="document.getElementById('homeUserMenu').classList.toggle('home-menu-open')" style="display:flex;align-items:center;gap:8px;">
+                        <span style="
+                            display:inline-flex;align-items:center;justify-content:center;
+                            width:30px;height:30px;border-radius:50%;
+                            background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.7);
+                            font-size:0.8rem;color:#fff;
+                        "><i class="fas fa-user"></i></span>
+                        <span style="color:#fff;font-size:0.9rem;font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ user.get_full_name|default:user.email }}</span>
+                        <i class="fas fa-chevron-down" style="color:#fff;font-size:0.7rem;"></i>
+                    </button>
+                    <ul id="homeUserMenu" class="home-user-dropdown">
+                        <li><a href="{% url 'users:profile' %}"><i class="fas fa-id-card"></i> My Profile</a></li>
+                        {% if user.is_staff %}
+                        <li><a href="{% url 'admin:index' %}"><i class="fas fa-tools"></i> Admin Panel</a></li>
+                        {% endif %}
+                        <li class="home-menu-divider"></li>
+                        <li><a href="{% url 'users:logout' %}" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <button class="sign-in-btn" onclick="openLoginModal()">Sign In</button>
+                </li>
+                {% endif %}
+            </ul>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        Nepal Hydropower<br>
+                    </h1>
+                    <p class="hero-description">
+                        The Antarikchya Nepal Hydropower is the hydrogeology 
+                        sector's flagship tool that  deliver accurate watershed analysis.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="hero-waves">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z"></path>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Discover <span class="highlight-hydropower">Hydropower</span></h2>
+                <p>Explore the key features of our hydropower analysis platform</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Watershed Delineation Card -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h3>Watershed Delineation</h3>
+                    <p>Advanced watershed boundary analysis using MERIT-Hydro datasets with high accuracy.</p>
+                    <button class="feature-btn" onclick="window.location.href='/delineation/'">
+                        Start Delineation
+                    </button>
+                </div>
+
+                <!-- Discharge Prediction Card -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Discharge Prediction</h3>
+                    <p>AI-powered discharge prediction using station-specific hydrogeology models for hydropower stations.</p>
+                    <button class="feature-btn" onclick="window.location.href='/discharge-prediction/'">
+                        Select Station
+                    </button>
+                </div>
+
+                <!-- Watershed Report Card -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h3>Watershed Report</h3>
+                    <p>Detailed watershed analysis covering population, land use &amp; land cover, buildings, and administrative units.</p>
+                    <button class="feature-btn" onclick="window.location.href='/watershed-report/'">
+                        Generate Report
+                    </button>
+                </div>
+
+                <!-- Interactive Mapping Card -->
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-globe-asia"></i>
+                    </div>
+                    <h3>Hazard Mapping</h3>
+                    <p>Visualization to identify and display areas susceptible to risks from natural disasters.</p>
+                    <button class="feature-btn" onclick="window.open('https://antarikchya.org.np/visualization', '_blank', 'noopener,noreferrer')">
+                        Visualization
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Insights Help Section -->
+    <section class="insights-help" id="insights">
+        <div class="container">
+            <div class="section-header">
+                <!-- <span class="insights-label">SMART HYDRO SOLUTIONS</span> -->
+                <h2>Monitor <span class="highlight-rivers">Rivers</span>, Forecast Energy,<br>and <span class="highlight-optimize">Optimize</span> <span class="highlight-operations">Operations</span></h2>
+                <p>Access real-time river conditions, weather observations, discharge forecasts, and energy predictions in one platform.</p>
+            </div>
+
+            <div class="insights-layout">
+                <!-- Left: accordion cards -->
+                <div class="insights-cards">
+
+                    <!-- Card 1 -->
+                    <div class="insights-card insights-card--active">
+                        <div class="insights-card-header" onclick="toggleInsightsCard(this)">
+                            <h3><i class="fas fa-water"></i>&ensp;Discharge Prediction &amp; Inflow Tracking</h3>
+                            <i class="fas fa-chevron-down insights-chevron"></i>
+                        </div>
+                        <div class="insights-card-body">
+                            <p>AI-powered daily discharge forecasts keep you ahead of inflow variability. Our hydrological models trained on station-specific climate data deliver river flow predictions so operators can plan generation schedules with confidence.</p>
+                            <ul class="insights-bullets">
+                                <li><i class="fas fa-check-circle"></i> Real-time discharge and energy visualization </li>
+                                <li><i class="fas fa-check-circle"></i> 25+ day rolling forecast window</li>
+                                <li><i class="fas fa-check-circle"></i> Climate-driven hydrological modelling</li>
+                            </ul>
+                            <a class="insights-link" href="/discharge-prediction/">Go to Dashboard &rsaquo;</a>
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="insights-card">
+                        <div class="insights-card-header" onclick="toggleInsightsCard(this)">
+                            <h3><i class="fas fa-bolt"></i>&ensp;Energy Forecasting &amp; Production Planning</h3>
+                            <i class="fas fa-chevron-down insights-chevron"></i>
+                        </div>
+                        <div class="insights-card-body">
+                            <p>Convert discharge forecasts directly into energy output estimates. The built-in Energy Forecast Calculator lets you set net head, duty cycle, and date range to instantly compute expected daily and total MWh generation.</p>
+                            <ul class="insights-bullets">
+                                <li><i class="fas fa-check-circle"></i> Daily &amp; total MWh estimates from predicted discharge</li>
+                                <li><i class="fas fa-check-circle"></i> Adjustable net head, efficiency &amp; duty cycle inputs</li>
+                                <li><i class="fas fa-check-circle"></i> Monthly forecast table with completion status</li>
+                            </ul>
+                            <a class="insights-link" href="/discharge-prediction/">Open Calculator &rsaquo;</a>
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="insights-card">
+                        <div class="insights-card-header" onclick="toggleInsightsCard(this)">
+                            <h3><i class="fas fa-satellite-dish"></i>&ensp;Ground Sensor Terminal &amp; Real-Time River Data</h3>
+                            <i class="fas fa-chevron-down insights-chevron"></i>
+                        </div>
+                        <div class="insights-card-body">
+                            <p>Our deployed Ground Sensor Terminal continuously measures runoff river conditions in real time. Sensor data is uplinked to satellite, received at the Ground Station, and displayed directly on the web portal — giving operators live visibility into river state without manual site visits.</p>
+                            <ul class="insights-bullets">
+                                <li><i class="fas fa-check-circle"></i> Real-time water depth monitoring via ultrasonic level sensor</li>
+                                <li><i class="fas fa-check-circle"></i> Solar-powered ESP32 terminal with satellite uplink</li>
+                                <li><i class="fas fa-check-circle"></i>Real time data through the web portal</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Card 4 -->
+                    <div class="insights-card">
+                        <div class="insights-card-header" onclick="toggleInsightsCard(this)">
+                            <h3><i class="fas fa-map-marked-alt"></i>&ensp;Watershed Delineation &amp; Analysis</h3>
+                            <i class="fas fa-chevron-down insights-chevron"></i>
+                        </div>
+                        <div class="insights-card-body">
+                            <p>Delineate precise catchment boundaries anywhere in Nepal using high-resolution DEM data. Generate full watershed reports covering land use, population, buildings, and administrative units.</p>
+                            <ul class="insights-bullets">
+                                <li><i class="fas fa-check-circle"></i> Click-to-delineate on interactive map</li>
+                                <li><i class="fas fa-check-circle"></i> High-resolution DEM — sub-100 m resolution</li>
+                                <li><i class="fas fa-check-circle"></i> Land use, LULC &amp; population analytics</li>
+                            </ul>
+                            <a class="insights-link" href="/delineation/">Open Delineation Tool &rsaquo;</a>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right: visual panel -->
+                <div class="insights-visual">
+                    <div class="insights-visual-inner">
+                        <div class="insights-img-wrapper">
+                            <img src="{% static 'images/Smart River Prediction.svg' %}" alt="Smart River Prediction" class="insights-img">
+                        </div>
+                        <div class="insights-stat-row">
+                            <div class="insights-stat">
+                                <span class="insights-stat-num">25+<span class="insights-stat-unit">days</span></span>
+                                <span class="insights-stat-label">Forecast Horizon</span>
+                            </div>
+                            <!-- <div class="insights-stat">
+                                <span class="insights-stat-num">5<span class="insights-stat-unit">hr</span></span>
+                                <span class="insights-stat-label">Weather Update Cycle</span>
+                            </div> -->
+                            <div class="insights-stat">
+                                <span class="insights-stat-num">2<span class="insights-stat-unit">+</span></span>
+                                <span class="insights-stat-label">Active Hydro Stations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Business Value Section -->
+    <section class="biz-value" id="business-value">
+        <div class="biz-value-inner">
+        <div class="biz-value-visual">
+            <div class="biz-value-visual-inner">
+                <img src="{% static 'images/revenu_section.svg' %}" alt="Portal dashboard charts" class="biz-value-img">
+            </div>
+        </div>
+        <div class="biz-value-content">
+            <!-- <span class="insights-label biz-corner-label">OPERATIONAL IMPACT</span> -->
+            <h2>Smarter Operations.<br>Better <span class="highlight-business">Business</span> Outcomes.</h2>
+
+            <div class="biz-challenge-box">
+                <div class="biz-box-label">CHALLENGES OPERATORS FACE</div>
+                <ul>
+                    <li>Uncertainty in river inflow during seasonal transitions</li>
+                    <li>Limited real-time visibility of site conditions</li>
+                    <li>Reactive decision-making due to delayed data</li>
+                    <li>Manual effort in energy production planning</li>
+                </ul>
+            </div>
+
+            <div class="biz-result-box">
+                <div class="biz-box-label">HOW THE PORTAL HELPS</div>
+                <ul>
+                    <li>25+ day discharge forecasts to plan generation schedules ahead</li>
+                    <li>Live sensor data (water depth, temperature) from deployed terminal</li>
+                    <li>Instant energy estimates via the built-in Forecast Calculator</li>
+                </ul>
+            </div>
+
+            <div class="biz-stat-row">
+                <div class="biz-stat">
+                    <span class="biz-stat-num">25<span class="biz-stat-unit">+ days</span></span>
+                    <span class="biz-stat-label">Advance Forecast</span>
+                </div>
+                <div class="biz-stat">
+                    <span class="biz-stat-num">24<span class="biz-stat-unit">/7</span></span>
+                    <span class="biz-stat-label">Automated Monitoring</span>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+
+    {% comment %} <section class="about" id="about">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>About Nepal Watersheds Portal</h2>
+                    <p>
+                        Our portal provides advanced watershed delineation capabilities for Nepal using 
+                        state-of-the-art MERIT-Hydro datasets. Built for researchers, engineers, and 
+                        water resource professionals who need accurate hydrological analysis.
+                    </p>
+                    <div class="about-features">
+                        <div class="about-feature">
+                            <i class="fas fa-map"></i>
+                            <span>Complete Nepal Coverage</span>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-code"></i>
+                            <span>Open Source Technology</span>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-users"></i>
+                            <span>Research Community</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-visual">
+                    <div class="about-stats">
+                        <div class="stat-card">
+                            <h3>100%</h3>
+                            <p>Nepal Coverage</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>MERIT</h3>
+                            <p>Hydro Dataset</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Real-time</h3>
+                            <p>Processing</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section> {% endcomment %}
+
+    {% include "includes/footer.html" %}
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeLoginModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+                <div class="lm-icon-ring"><i class="fas fa-sign-in-alt"></i></div>
+                <h2 class="modal-title">Sign In</h2>
+                {% if logged_out %}
+                <div class="alert alert-success" role="alert" id="logout-success-message">
+                    You have been successfully logged out.
+                </div>
+                {% endif %}
+                <form method="post" action="{% url 'users:login' %}" class="login-form">
+                    {% csrf_token %}
+                    <!-- Adding hidden input for CSRF token as a backup -->
+                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                    <div class="form-group">
+                        <input type="email" name="username" placeholder="Email or mobile number" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="Password" required class="form-input">
+                    </div>
+                    <div id="loginErrorMsg" style="display:none;color:#e74c3c;font-size:0.88rem;margin-bottom:8px;padding:8px 10px;background:rgba(231,76,60,0.1);border-radius:6px;border:1px solid rgba(231,76,60,0.3);"></div>
+                    <button type="submit" class="signin-btn">Sign In</button>
+                    <div class="form-options">
+                        <div class="remember-me">
+                            <input type="checkbox" id="remember" name="remember">
+                            <label for="remember">Remember me</label>
+                        </div>
+                    </div>
+                    <p class="help-text">
+                        <a href="{% url 'users:password_reset' %}">Forgot password?</a>
+                    </p>
+                    <p class="signup-text">
+                        New here? <a href="{% url 'users:register_free' %}">Create a free account</a>.
+                    </p>
+                    <p class="signup-text" style="margin-top:4px;">
+                        Need Discharge Prediction access? <a href="{% url 'users:register' %}">Request full access</a>.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/home.js' %}"></script>
+    <script>
+        function openLoginModal() {
+            const modal = document.getElementById('loginModal');
+            modal.classList.add('show');
+            document.body.classList.add('modal-open');
+            
+            // Hide logout message when opening the modal via button click
+            // This prevents the message from showing when a user logs out and then clicks sign in without refreshing
+            const logoutAlert = document.querySelector('#loginModal .alert-success');
+            if (logoutAlert) {
+                logoutAlert.style.display = 'none';
+            }
+            
+            // Refresh CSRF token when opening modal
+            updateCsrfToken();
+        }
+
+        function closeLoginModal() {
+            const modal = document.getElementById('loginModal');
+            modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+            // Reset form state
+            const form = modal.querySelector('.login-form');
+            if (form) {
+                form.querySelector('input[name="username"]').value = '';
+                form.querySelector('input[name="password"]').value = '';
+            }
+            const errorDiv = document.getElementById('loginErrorMsg');
+            if (errorDiv) errorDiv.style.display = 'none';
+            const btn = modal.querySelector('button[type="submit"]');
+            if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+        }
+        
+        // Function to update CSRF token in the form
+        function updateCsrfToken() {
+            // Get the CSRF token from cookie
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            // Get CSRF token from cookie
+            const csrftoken = getCookie('csrftoken');
+            
+            // Update both the Django {% csrf_token %} generated input and our backup
+            const csrfInputs = document.querySelectorAll('input[name="csrfmiddlewaretoken"]');
+            csrfInputs.forEach(input => {
+                input.value = csrftoken;
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('loginModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLoginModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLoginModal();
+            }
+        });
+
+        // Ensure modal is hidden on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('loginModal');
+            modal.classList.remove('show');
+            document.body.classList.remove('modal-open');
+            
+            // Initialize CSRF token
+            updateCsrfToken();
+            
+            // Check if we need to show the login modal due to a redirect after logout
+            if (localStorage.getItem('freshLogout') === 'true') {
+                // Clear the flag
+                localStorage.removeItem('freshLogout');
+                
+                // We don't want to show the logout message when opening login modal via JS after logout
+                const logoutMessage = document.getElementById('logout-success-message');
+                if (logoutMessage) {
+                    logoutMessage.style.display = 'none';
+                }
+            }
+        });
+        // Close home profile dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var menu = document.getElementById('homeUserMenu');
+            if (menu && !e.target.closest('.home-user-btn') && !e.target.closest('#homeUserMenu')) {
+                menu.classList.remove('home-menu-open');
+            }
+        });
+
+        // AJAX login: intercept form submit so the page never reloads,
+        // then swap the Sign In button for the profile dropdown in-place.
+        (function () {
+            function updateNavbar(email, fullName, isStaff) {
+                const displayName = (fullName && fullName.trim()) ? fullName.trim() : email;
+                const signInLi = document.querySelector('.nav-item .sign-in-btn:not(.home-user-btn)')
+                                        ?.closest('li.nav-item');
+                if (!signInLi) return; // already shows profile dropdown
+                signInLi.style.position = 'relative';
+                let adminLink = '';
+                if (isStaff) {
+                    adminLink = '<li><a href="/admin/"><i class="fas fa-tools"></i> Admin Panel</a></li>';
+                }
+                signInLi.innerHTML =
+                    '<button class="sign-in-btn home-user-btn" type="button" ' +
+                        'onclick="document.getElementById(\'homeUserMenu\').classList.toggle(\'home-menu-open\')" ' +
+                        'style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="display:inline-flex;align-items:center;justify-content:center;' +
+                            'width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.25);' +
+                            'border:2px solid rgba(255,255,255,0.7);font-size:0.8rem;color:#fff;">' +
+                            '<i class="fas fa-user"></i></span>' +
+                        '<span style="color:#fff;font-size:0.9rem;font-weight:600;max-width:140px;' +
+                            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                            displayName.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' +
+                        '<i class="fas fa-chevron-down" style="color:#fff;font-size:0.7rem;"></i>' +
+                    '</button>' +
+                    '<ul id="homeUserMenu" class="home-user-dropdown">' +
+                        '<li><a href="/users/profile/"><i class="fas fa-id-card"></i> My Profile</a></li>' +
+                        adminLink +
+                        '<li class="home-menu-divider"></li>' +
+                        '<li><a href="/users/logout/" style="color:#e74c3c;">' +
+                            '<i class="fas fa-sign-out-alt"></i> Logout</a></li>' +
+                    '</ul>';
+            }
+
+            document.querySelector('.login-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const form     = this;
+                const email    = form.querySelector('input[name="username"]').value.trim();
+                const password = form.querySelector('input[name="password"]').value;
+                const errorDiv = document.getElementById('loginErrorMsg');
+                const submitBtn = form.querySelector('button[type="submit"]');
+
+                // Read CSRF token from cookie (most reliable source)
+                function getCsrf() {
+                    const m = document.cookie.match(/csrftoken=([^;]+)/);
+                    return m ? m[1] : (window.CSRF_TOKEN || '');
+                }
+
+                errorDiv.style.display = 'none';
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Signing in…';
+
+                fetch('{% url "users:ajax_login" %}', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+                    body:    JSON.stringify({ email: email, password: password }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        closeLoginModal();
+                        updateNavbar(data.email, data.full_name, data.is_staff);
+                        // Keep USER_AUTHENTICATED in sync for the delineation gate
+                        window.USER_AUTHENTICATED = true;
+                    } else {
+                        errorDiv.textContent = data.error || 'Invalid credentials.';
+                        errorDiv.style.display = 'block';
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Sign In';
+                    }
+                })
+                .catch(() => {
+                    errorDiv.textContent = 'Network error — please try again.';
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
+                });
+            });
+        })();
+    </script>
+    <script>
+        function toggleInsightsCard(header) {
+            const card = header.closest('.insights-card');
+            const isActive = card.classList.contains('insights-card--active');
+            // Collapse all
+            document.querySelectorAll('.insights-card--active').forEach(c => c.classList.remove('insights-card--active'));
+            // Open clicked one if it was not already open
+            if (!isActive) card.classList.add('insights-card--active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+/* Register Page Styling */
+body {
+    background-color: rgba(15, 15, 15, 0.95); /* Very dark background like in the screenshot */
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto; /* Allow scrolling for the registration form */
+}
+
+.standalone-register-page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.register-container {
+    width: 100%;
+    max-width: 600px; /* Wider for registration form */
+    position: relative;
+    z-index: 1000;
+}
+
+.register-card {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    background-color: #1a1a1a; /* Match the modal's darker background */
+    color: white;
+    position: relative;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.btn-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: transparent;
+    color: white;
+    opacity: 1; /* Increased opacity for better visibility */
+    font-size: 1rem;
+    z-index: 10;
+    filter: invert(1) grayscale(100%) brightness(200%); /* This makes the Bootstrap X icon white */
+    border: none;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close:hover {
+    opacity: 1;
+    cursor: pointer;
+}
+
+.register-header {
+    padding: 20px;
+    text-align: center;
+    background-color: transparent;
+    border-bottom: none;
+    padding-top: 30px;
+}
+
+.register-body {
+    padding: 0 30px 30px;
+}
+
+.register-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 25px;
+    text-align: center;
+    color: white;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+}
+
+select.form-control,
+.form-control,
+input.form-control,
+textarea.form-control {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white !important; /* Force white text color with !important */
+    transition: all 0.3s ease;
+    font-size: 14px;
+    -webkit-text-fill-color: white; /* Additional property for Safari/iOS */
+    caret-color: white; /* Set cursor color to white */
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 35px;
+}
+
+select.form-control option {
+    background-color: #1a1a1a;
+    color: white !important;
+}
+
+/* Target autofill styling for Chrome, Safari, and Edge */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #2a2a2a inset !important;
+    -webkit-text-fill-color: white !important;
+    caret-color: white;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.form-control:focus,
+.form-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+    color: white !important;
+    -webkit-text-fill-color: white;
+}
+
+.form-control::placeholder,
+.form-input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+    opacity: 1; /* Firefox requires this to show the placeholder color */
+}
+
+/* Ensure the text in select options is white */
+select.form-control option {
+    background-color: #1a1a1a;
+    color: white !important;
+}
+
+.register-btn {
+    width: 100%;
+    padding: 12px 0;
+    background-color: #dc1a22; /* Bright red button like in the login page */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.register-btn:hover {
+    background-color: #b8151c;
+}
+
+.login-text {
+    text-align: center;
+    margin-top: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+/* Style for the "Login here" text */
+.login-text a {
+    color: #4a90e2; /* Bright blue for links */
+    text-decoration: none;
+    transition: color 0.3s ease;
+    font-weight: 600;
+}
+
+.login-text a:hover {
+    color: #75a9e6;
+    text-decoration: underline;
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 4px;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border: none;
+}
+
+.alert-info {
+    background-color: rgba(47, 128, 237, 0.15);
+    color: #a8c7f0; /* Lighter blue for better readability on dark background */
+    border-left: 4px solid #4a90e2;
+}
+
+.alert-danger {
+    background-color: rgba(220, 26, 34, 0.15);
+    color: #ff8c8c; /* Lighter red for better readability on dark background */
+    border-left: 4px solid #dc1a22;
+}
+
+.alert-success {
+    background-color: rgba(39, 174, 96, 0.15);
+    color: #a3e9c3; /* Lighter green for better readability on dark background */
+    border-left: 4px solid #27ae60;
+}
+
+.alert-warning {
+    background-color: rgba(241, 196, 15, 0.15);
+    color: #f7e29c; /* Lighter yellow for better readability on dark background */
+    border-left: 4px solid #f1c40f;
+}
+
+.invalid-feedback {
+    color: #ff6b6b;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Row and column layout */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -15px;
+    margin-left: -15px;
+}
+
+.col-md-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .register-container {
+        max-width: 95%;
+    }
+}
+
+/* --- Form validation --- */
+.form-control.is-invalid {
+    border-color: #dc1a22 !important;
+    box-shadow: 0 0 0 2px rgba(220, 26, 34, 0.15) !important;
+}
+
+.field-error {
+    color: #ff6b6b;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Password visibility toggle */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-control {
+    padding-right: 42px;
+}
+
+.password-wrapper .toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 26px;
+    height: 44px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.password-wrapper .toggle-password:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Password strength bar */
+.password-strength {
+    margin-top: 6px;
+}
+
+.strength-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    margin-bottom: 3px;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strength-text {
+    font-size: 11px;
+}
+
+/* Confirm password match indicator */
+.match-indicator {
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+    min-height: 18px;
+}
+
+.match-ok  { color: #27ae60; }
+.match-fail { color: #ff6b6b; }
