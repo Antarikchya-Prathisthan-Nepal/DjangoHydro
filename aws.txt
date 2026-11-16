@@ -1,0 +1,28 @@
+# If .venv is used which will be hidden because of .venv : 
+
+## use this to confirm if the file exist in the path
+ls -la .venv/lib/python3.12/site-packages/django/conf/global_settings.py
+
+## then, to edit file
+sudo nano .venv/lib/python3.12/site-packages/django/conf/global_settings.py
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###########################
+## install tree to view the folder structure like tree
+sudo apt install tree
+tree -a .venv/
+find .venv/ -type d
