@@ -24,6 +24,7 @@ import pyproj
 import rasterio
 import rasterio.mask
 import rasterio.warp
+import shapely
 from shapely.geometry import box, mapping, shape
 from shapely.ops import transform
 
@@ -94,18 +95,24 @@ def _area_km2(geom):
     ).transform
     return transform(project, geom).area / 1e6
 
-
+"""
 # ---------------------------------------------------------------------------
 # Public API
+#* it allows parallel execution of independent spatial analyses listed below
+Thread	    Operation	            Main libraries
+1	        Population analysis	    GeoPandas, Shapely
+2	        LULC analysis	        Rasterio, Shapely, PyProj
+3	        Building analysis	    GeoPandas, Pyogrio
+4	        Ward analysis	        GeoPandas, Shapely
 # ---------------------------------------------------------------------------
-
 def analyze_area(geom_geojson: dict) -> dict:
-    """
-    Run full watershed report for a GeoJSON geometry (dict with type/coordinates).
-    Returns a results dict with keys: area_km2, population, lulc, buildings, wards, map_image.
-    """
+    
+    #Run full watershed report for a GeoJSON geometry (dict with type/coordinates).
+    #Returns a results dict with keys: area_km2, population, lulc, buildings, wards, map_image.
+    
     geom = shape(geom_geojson)
     results = {'area_km2': round(_area_km2(geom), 3)}
+    shapely.prepare(geom)
 
     # Run all spatial analyses in parallel (they are independent of each other)
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -129,6 +136,65 @@ def analyze_area(geom_geojson: dict) -> dict:
         results['map_image'], results['lulc_overlay'] = _generate_visuals(geom)
     except Exception as exc:
         logger.exception('Visual generation failed')
+        results['map_image'] = None
+        results['lulc_overlay'] = None
+
+    return results
+
+"""
+
+
+""" 
+#* it allows sequential execution of independent spatial analyses listed below
+Thread	    Operation	            Main libraries
+1	        Population analysis	    GeoPandas, Shapely
+2	        LULC analysis	        Rasterio, Shapely, PyProj
+3	        Building analysis	    GeoPandas, Pyogrio
+4	        Ward analysis	        GeoPandas, Shapely
+"""
+
+def analyze_area(geom_geojson: dict) -> dict:
+    """
+    Run full watershed report for a GeoJSON geometry.
+    """
+
+    geom = shape(geom_geojson)
+
+    results = {
+        'area_km2': round(_area_km2(geom), 3)
+    }
+
+    shapely.prepare(geom)
+
+    # Run spatial analyses sequentially
+    analyses = {
+        'population': _analyze_population,
+        'lulc': _analyze_lulc,
+        'buildings': _analyze_buildings,
+        'wards': _analyze_wards,
+    }
+
+    for key, analysis_func in analyses.items():
+        try:
+            logger.info("Starting %s analysis", key)
+
+            results[key] = analysis_func(geom)
+
+            logger.info("Completed %s analysis", key)
+
+        except Exception as exc:
+            logger.exception("Analysis failed for %s", key)
+            results[key] = {'error': str(exc)}
+
+    # Generate map and LULC overlay
+    try:
+        results['map_image'], results['lulc_overlay'] = (
+            _generate_visuals(geom)
+        )
+
+    except Exception:
+        logger.exception("Visual generation failed")
+
         results['map_image'] = None
         results['lulc_overlay'] = None
 
@@ -744,7 +810,7 @@ def _analyze_population(geom):
     if pop_gdf.empty:
         return {'total': 0, 'cell_count': 0}
 
-    intersecting = pop_gdf[pop_gdf.intersects(geom)]
+    intersecting = pop_gdf[shapely.intersects(geom, pop_gdf.geometry.array)]
     total = float(intersecting['VALUE'].sum())
     return {
         'total': round(total),
@@ -823,7 +889,7 @@ def _analyze_buildings(geom):
     else:
         bld_gdf = bld_gdf.to_crs('EPSG:4326')
 
-    intersecting = bld_gdf[bld_gdf.intersects(geom)]
+    intersecting = bld_gdf[shapely.intersects(geom, bld_gdf.geometry.array)]
     vc = intersecting['type'].fillna('unclassified').value_counts()
     type_counts = [{'type': k, 'count': int(v)} for k, v in vc.items()]
     return {
@@ -834,7 +900,7 @@ def _analyze_buildings(geom):
 
 def _analyze_wards(geom):
     wards_gdf = _load_wards()
-    intersecting = wards_gdf[wards_gdf.intersects(geom)]
+    intersecting = wards_gdf[shapely.intersects(geom, wards_gdf.geometry.array)]
 
     wards = []
     for _, row in intersecting.iterrows():
