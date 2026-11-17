@@ -51,6 +51,24 @@ class PreparedWatershedAnalysisTests(unittest.TestCase):
         self.assertEqual(result['districts'], ['A', 'B', 'C'])
         self.assertEqual([ward['ward_number'] for ward in result['wards']], [1, 3, 4])
 
+    def test_buildings_use_building_column_when_type_is_missing(self):
+        buildings = gpd.GeoDataFrame(
+            {'building': [None, 'hole', 'residential', None, 'outside']},
+            geometry=self.features, crs='EPSG:4326',
+        )
+        with patch.object(analysis.gpd, 'read_file', return_value=buildings):
+            self.assertEqual(analysis._analyze_buildings(self.geom), {
+                'total': 3,
+                'by_type': [{'type': 'unclassified', 'count': 2},
+                            {'type': 'residential', 'count': 1}],
+            })
+
+    def test_buildings_report_missing_classification_columns(self):
+        buildings = gpd.GeoDataFrame(geometry=self.features, crs='EPSG:4326')
+        with patch.object(analysis.gpd, 'read_file', return_value=buildings):
+            with self.assertRaisesRegex(ValueError, 'type.*building'):
+                analysis._analyze_buildings(self.geom)
+
     def test_analysis_prepares_geometry_before_workers(self):
         def check_prepared(geom):
             self.assertTrue(shapely.is_prepared(geom))

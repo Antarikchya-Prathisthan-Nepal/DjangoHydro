@@ -877,8 +877,8 @@ def _analyze_lulc(geom):
 
 def _analyze_buildings(geom):
     bbox = geom.bounds
-    bld_path = DATA_DIR / 'buildings' / 'gis_osm_buildings_a_free_1.shp'
-
+    # bld_path = DATA_DIR / 'buildings' / 'gis_osm_buildings_a_free_1.shp'
+    bld_path = DATA_DIR / 'buildings' / 'osm_google_microsoft_buildings_NPL.fgb'
     bld_gdf = gpd.read_file(bld_path, bbox=bbox)
     if bld_gdf.empty:
         return {'total': 0, 'by_type': []}
@@ -889,8 +889,19 @@ def _analyze_buildings(geom):
     else:
         bld_gdf = bld_gdf.to_crs('EPSG:4326')
 
+    # for .fgb files, the type column might be 'type' or 'building'
+    if 'type' in bld_gdf.columns:
+        type_column = 'type'
+    elif 'building' in bld_gdf.columns:
+        type_column = 'building'
+    else:
+        raise ValueError('Buildings dataset must contain a "type" or "building" column.')
+    # till here 
+    
+    
     intersecting = bld_gdf[shapely.intersects(geom, bld_gdf.geometry.array)]
-    vc = intersecting['type'].fillna('unclassified').value_counts()
+    # vc = intersecting['type'].fillna('unclassified').value_counts()
+    vc = intersecting[type_column].fillna('unclassified').value_counts()
     type_counts = [{'type': k, 'count': int(v)} for k, v in vc.items()]
     return {
         'total': len(intersecting),
