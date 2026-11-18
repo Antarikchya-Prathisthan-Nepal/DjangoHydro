@@ -898,7 +898,7 @@ def _analyze_buildings(geom):
         raise ValueError('Buildings dataset must contain a "type" or "building" column.')
     # till here 
     
-    
+    # "shapely.intersects" includes geometries that share only a boundary point or edge.
     intersecting = bld_gdf[shapely.intersects(geom, bld_gdf.geometry.array)]
     # vc = intersecting['type'].fillna('unclassified').value_counts()
     vc = intersecting[type_column].fillna('unclassified').value_counts()
